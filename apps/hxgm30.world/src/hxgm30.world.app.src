@@ -1,0 +1,15 @@
+{application, 'hxgm30.world',
+ [{description, "An LFE application"},
+  {vsn, git},
+  {registered, []},
+  {mod, {'hxgm30.world-app', []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.
