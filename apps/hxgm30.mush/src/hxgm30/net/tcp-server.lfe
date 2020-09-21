@@ -5,6 +5,8 @@
    (start_link 3)
    (stop 1)))
 
+(include-lib "logjam/include/logjam.hrl")
+
 (defun behaviour_info
   (('callbacks)
    '(#(handle_accept 2)
@@ -14,7 +16,7 @@
    'undefined))
 
 (defun start_link (callback args opts)
-  (logger:info "Starting TCP server with [~p, ~p, ~p]"
+  (log-info "Starting TCP server with [~p, ~p, ~p]"
                 `(,callback ,args ,opts))
   (hxgm30.net.tcp.sup:start_link callback args opts))
 

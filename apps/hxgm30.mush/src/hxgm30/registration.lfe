@@ -9,12 +9,14 @@
     (handle_close 2)
     (handle_data 3)))
 
+(include-lib "logjam/include/logjam.hrl")
+
 ;;; ---------------------
 ;;; server implementation
 ;;; ---------------------
 
 (defun start_link ()
-  (logger:info "Starting registration server ...")
+  (log-info "Starting registration server ...")
   (hxgm30.net.tcp-server:start_link
    (MODULE)
    '()
@@ -25,16 +27,16 @@
 ;;; -----------------------
 
 (defun handle_accept (socket state)
-  (logger:info "New client connected")
+  (log-info "New client connected")
   (gen_tcp:send socket (banner))
   (gen_tcp:send socket (prompt))
   `#(ok ,state))
 
 (defun handle_close (_socket _state)
-  (logger:info "Closing connection ..."))
+  (log-info "Closing connection ..."))
 
 (defun handle_data (socket data state)
-  (logger:info "Received data: ~p" `(,data))
+  (log-debug "Received data: ~p" `(,data))
   (gen_tcp:send socket data)
   `#(ok ,state))
 

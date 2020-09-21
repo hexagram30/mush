@@ -15,6 +15,8 @@
   (export
    (state 0)))
 
+(include-lib "logjam/include/logjam.hrl")
+
 ;;; ----------------
 ;;; config functions
 ;;; ----------------
@@ -38,7 +40,7 @@
 (defun start_link (callback listen args opts)
   (let ((genserver-args `(,callback ,listen ,args ,opts ,(self)))
         (genserver-opts '()))
-    (logger:debug "Calling gen_server:start with args: ~p" `(,genserver-args))
+    (log-debug "Calling gen_server:start with args: ~p" `(,genserver-args))
     (gen_server:start_link `#(local ,(SERVER))
                            (MODULE)
                            genserver-args
@@ -58,16 +60,16 @@
 
 (defun handle_info
   ((`#(EXIT ,_from normal) st)
-   (logger:debug "Normal exit ...")
+   (log-debug "Normal exit ...")
    `#(noreply ,st))
   ((`#(EXIT ,pid ,reason) st)
-   (logger:error "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
+   (log-error "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
    `#(noreply ,st))
   (('timeout (= (match-state callback mod
                              socket sock
                              args as
                              parent caller) st))
-   (logger:debug "Handling TCP timeout info message ...")
+   (log-debug "Handling TCP timeout info message ...")
    (let ((`#(ok ,client-sock) (gen_tcp:accept sock)))
      (case (call mod 'handle_accept client-sock as)
        (`#(close ,new-args)
@@ -79,7 +81,7 @@
         `#(noreply (set-state st socket client-socket args new-args))))))
   ((`#(tcp ,sock ,data) (= (match-state callback mod
                                         args as) st))
-   (logger:debug "Handling TCP info message ...")
+   (log-debug "Handling TCP info message ...")
    (case (call mod 'handle_data sock data as)
      (`#(close ,new-args)
       (gen_tcp:close sock)
@@ -89,35 +91,35 @@
       `#(noreply ,(set-state-args st new-args)))))
   ((`#(tcp_closed ,sock) (= (match-state callback mod
                                          args as) st))
-   (logger:debug "Handling TCP closed info message ...")
+   (log-debug "Handling TCP closed info message ...")
    (call mod 'handle_close sock as)
    `#(stop normal ,st))
   ((`#(tcp_error ,sock) (= (match-state callback mod
                                          args as) st))
-   (logger:debug "Handling TCP error info message ...")
+   (log-debug "Handling TCP error info message ...")
    (call mod 'handle_close sock as)
    `#(stop normal ,st))
   ((msg st)
-   (logger:debug "Got unexpected message: ~p" `(,msg))
+   (log-debug "Got unexpected message: ~p" `(,msg))
    `#(noreply ,st)))
 
 (defun handle_cast (msg state)
-  (logger:debug "Got cast msg: ~p" `(,msg))
+  (log-debug "Got cast msg: ~p" `(,msg))
   `#(noreply ,state))
 
 (defun handle_call
   ((`#(state) _from st)
     `#(reply ,st ,st))
   ((msg _from state)
-   (logger:debug "Got call msg: ~p" `(,msg))
+   (log-debug "Got call msg: ~p" `(,msg))
    `#(reply ,(unknown-command) ,state)))
 
 (defun terminate (_reason _state)
-  (logger:info "Terminating ...")
+  (log-info "Terminating ...")
   'ok)
 
 (defun code_change (_old-version state _extra)
-  (logger:info "Code change ...")
+  (log-info "Code change ...")
   `#(ok ,state))
 
 (defun state ()

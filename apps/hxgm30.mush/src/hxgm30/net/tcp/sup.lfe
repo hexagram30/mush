@@ -8,6 +8,8 @@
   (export
    (init 1)))
 
+(include-lib "logjam/include/logjam.hrl")
+
 ;;; ----------------
 ;;; config functions
 ;;; ----------------
@@ -26,7 +28,7 @@
 ;;; -------------------------
 
 (defun start_link (callback args opts)
-  (logger:debug "Starting TCP server supervisor ...")
+  (log-debug "Starting TCP server supervisor ...")
   (let (((= `#(ok ,pid) started) (supervisor:start_link (MODULE)
                                                         `(,callback ,args ,opts))))
     (start_child pid)
@@ -41,13 +43,13 @@
 
 (defun init
   ((`(,callback ,args ,opts))
-   (logger:debug "Initializing TCP server supervisor with options: ~p" `(,opts))
+   (log-debug "Initializing TCP server supervisor with options: ~p" `(,opts))
    (let* ((port  (proplists:get_value 'port opts))
           (socket-opts (proplists:delete
                         'port
                         (lists:append opts (default-socket-opts))))
           (listen (gen_tcp:listen port socket-opts)))
-     (logger:info "Listening for TCP connections on port ~p" `(,port))
+     (log-info "Listening for TCP connections on port ~p" `(,port))
      `#(ok #(,(sup-flags) (,(child 'hxgm30.net.tcp.server
                                    'start_link
                                    `(,callback ,listen ,args ,socket-opts))))))))
