@@ -34,6 +34,19 @@ Infrastructure:
 
 * a PostgreSQL-compatible database
 
+This can be set up locally by running Postgres in a Docker container:
+
+```shell
+$ cd priv/docker/postgres/
+$ make run
+```
+
+Then, to set up the database with the latest schemas, run this:
+
+```shell
+$ rebar3 migrate
+```
+
 ## Build [&#x219F;](#table-of-contents)
 
 ```shell
