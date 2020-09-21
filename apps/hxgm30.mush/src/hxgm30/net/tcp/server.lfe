@@ -5,12 +5,12 @@
    (start_link 4))
   ;; callback implementation
   (export
-    (init 1)
-    (handle_call 3)
-    (handle_cast 2)
-    (handle_info 2)
-    (terminate 2)
-    (code_change 3))
+   (init 1)
+   (handle_call 3)
+   (handle_cast 2)
+   (handle_info 2)
+   (terminate 2)
+   (code_change 3))
   ;; debug
   (export
    (state 0)))
@@ -108,17 +108,17 @@
 (defun handle_call
   ((`#(state) _from st)
     `#(reply ,st ,st))
-  ((msg _from state)
+  ((msg _from st)
    (log-debug "Got call msg: ~p" `(,msg))
-   `#(reply ,(unknown-command) ,state)))
+   `#(reply ,(unknown-command) ,st)))
 
-(defun terminate (_reason _state)
+(defun terminate (_reason _st)
   (log-info "Terminating ...")
   'ok)
 
-(defun code_change (_old-version state _extra)
+(defun code_change (_old-version st _extra)
   (log-info "Code change ...")
-  `#(ok ,state))
+  `#(ok ,st))
 
 (defun state ()
   (gen_server:call (SERVER) `#(state)))

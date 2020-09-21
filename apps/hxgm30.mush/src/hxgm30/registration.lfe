@@ -4,10 +4,10 @@
   (export
    (start_link 0))
   (export
-    ;; callback implementation
-    (handle_accept 2)
-    (handle_close 2)
-    (handle_data 3)))
+   ;; callback implementation
+   (handle_accept 2)
+   (handle_close 2)
+   (handle_data 3)))
 
 (include-lib "logjam/include/logjam.hrl")
 

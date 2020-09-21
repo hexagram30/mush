@@ -1,19 +1,21 @@
 (defmodule hxgm30.store
   (behaviour gen_server)
   (export
-    ;; gen_server implementation
-    (start_link 0)
-    (stop 0)
-    ;; callback implementation
-    (init 1)
-    (handle_call 3)
-    (handle_cast 2)
-    (handle_info 2)
-    (terminate 2)
-    (code_change 3)
-    ;; server API
-    (pid 0)
-    (echo 1)))
+   ;; gen_server implementation
+   (start_link 0))
+  (export
+   ;; callback implementation
+   (init 1)
+   (handle_call 3)
+   (handle_cast 2)
+   (handle_info 2)
+   (terminate 2)
+   (code_change 3))
+  ;; server API
+  (export
+   (stop 0)
+   (pid 0)
+   (echo 1)))
 
 (include-lib "logjam/include/logjam.hrl")
 

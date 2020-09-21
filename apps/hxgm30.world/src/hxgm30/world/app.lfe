@@ -1,9 +1,10 @@
 (defmodule hxgm30.world.app
   (behaviour application)
   (export
-    ;; app implementation
-    (start 2)
-    (stop 0)))
+   ;; app implementation
+   (start 2))
+  (export
+   (stop 0)))
 
 (include-lib "logjam/include/logjam.hrl")
 

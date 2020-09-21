@@ -1,11 +1,13 @@
 (defmodule hxgm30.mush.sup
   (behaviour supervisor)
   (export
-    ;; supervisor implementation
-    (start_link 0)
-    (stop 0)
-    ;; callback implementation
-    (init 1)))
+   ;; supervisor implementation
+   (start_link 0))
+  (export
+   ;; callback implementation
+   (init 1))
+  (export
+   (stop 0)))
 
 ;;; ----------------
 ;;; config functions
