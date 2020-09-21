@@ -59,7 +59,7 @@
   ((`#(EXIT ,_from normal) state)
    `#(noreply ,state))
   ((`#(EXIT ,pid ,reason) state)
-   (io:format "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
+   (logger:error "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
    `#(noreply ,state))
   ((_msg state)
    `#(noreply ,state)))

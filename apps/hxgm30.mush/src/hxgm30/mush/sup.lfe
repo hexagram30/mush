@@ -1,5 +1,5 @@
-(defmodule hxgm30.mush-sup
-  (behaviour gen_server)
+(defmodule hxgm30.mush.sup
+  (behaviour supervisor)
   (export
     ;; supervisor implementation
     (start_link 0)
