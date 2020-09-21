@@ -22,8 +22,6 @@
 ;;; ----------------
 
 (defun SERVER () (MODULE))
-(defun initial-state () '#())
-(defun genserver-opts () '())
 (defun unknown-command () #(error "Unknown command."))
 
 (defrecord state

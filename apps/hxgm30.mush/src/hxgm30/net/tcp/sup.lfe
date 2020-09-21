@@ -14,7 +14,7 @@
 ;;; config functions
 ;;; ----------------
 
-(defun SERVER () (MODULE))
+;;(defun SERVER () (MODULE))
 (defun sup-flags ()
   `#M(strategy simple_one_for_one
       intensity 1000
