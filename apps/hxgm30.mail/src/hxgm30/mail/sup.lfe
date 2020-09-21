@@ -1,4 +1,4 @@
-(defmodule hxgm30.mail-sup
+(defmodule hxgm30.mail.sup
   (behaviour gen_server)
   (export
     ;; supervisor implementation

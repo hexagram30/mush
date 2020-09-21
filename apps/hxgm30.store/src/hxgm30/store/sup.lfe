@@ -1,5 +1,5 @@
-(defmodule hxgm30.world-sup
-  (behaviour gen_server)
+(defmodule hxgm30.store.sup
+  (behaviour supervisor)
   (export
     ;; supervisor implementation
     (start_link 0)
@@ -35,7 +35,7 @@
 ;;; -----------------------
 
 (defun init (_args)
-  `#(ok #(,(sup-flags) (,(child 'hxgm30.world 'start_link '())))))
+  `#(ok #(,(sup-flags) (,(child 'hxgm30.store 'start_link '())))))
 
 ;;; -----------------
 ;;; private functions

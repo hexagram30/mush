@@ -2,7 +2,7 @@
  [{description, "An LFE application"},
   {vsn, git},
   {registered, []},
-  {mod, {'hxgm30.mail-app', []}},
+  {mod, {'hxgm30.mail.app', []}},
   {applications,
    [kernel,
     stdlib

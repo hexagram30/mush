@@ -2,7 +2,7 @@
  [{description, "An LFE application"},
   {vsn, git},
   {registered, []},
-  {mod, {'hxgm30.mush-app', []}},
+  {mod, {'hxgm30.mush.app', []}},
   {applications,
    [kernel,
     stdlib

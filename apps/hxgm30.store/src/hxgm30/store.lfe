@@ -1,4 +1,4 @@
-(defmodule hxgm30.mail
+(defmodule hxgm30.store
   (behaviour gen_server)
   (export
     ;; gen_server implementation
@@ -14,6 +14,8 @@
     ;; server API
     (pid 0)
     (echo 1)))
+
+(include-lib "logjam/include/logjam.hrl")
 
 ;;; ----------------
 ;;; config functions
@@ -59,7 +61,7 @@
   ((`#(EXIT ,_from normal) state)
    `#(noreply ,state))
   ((`#(EXIT ,pid ,reason) state)
-   (io:format "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
+   (log-error "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
    `#(noreply ,state))
   ((_msg state)
    `#(noreply ,state)))
