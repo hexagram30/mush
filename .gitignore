@@ -19,3 +19,4 @@ rebar3.crashdump
 *~
 *ssh_*key*
 *authorized_keys
+/priv/docker/postgres/data
