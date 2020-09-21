@@ -1,6 +1,6 @@
 # hxgm30.mush
 
-[![Build Status][travis-badge]][travis]
+[![Build Status][gh-actions-badge]][gh-actions]
 [![LFE Versions][lfe-badge]][lfe]
 [![Erlang Versions][erlang-badge]][versions]
 [![Tag][github-tag-badge]][github-tag]
@@ -71,7 +71,7 @@ Copyright © 2020, Duncan McGreggor <oubiwann@gmail.com>.
 [github]: https://github.com/hexagram30/mush
 [travis]: https://travis-ci.org/hexagram30/mush
 [travis-badge]: https://img.shields.io/travis/hexagram30/mush.svg
-[gh-actions-badge]: https://github.com/hexagram30/mush/workflows/Go/badge.svg
+[gh-actions-badge]: https://github.com/hexagram30/mush/workflows/ci%2Fcd/badge.svg
 [gh-actions]: https://github.com/hexagram30/mush/actions
 [lfe]: https://github.com/rvirding/lfe
 [lfe-badge]: https://img.shields.io/badge/lfe-2.0-blue.svg
