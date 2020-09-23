@@ -1,5 +1,5 @@
 {application, 'hxgm30.store',
- [{description, "An LFE application"},
+ [{description, "Storage for the LFE MUSH server"},
   {vsn, git},
   {registered, []},
   {mod, {'hxgm30.store.app', []}},
