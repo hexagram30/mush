@@ -6,8 +6,8 @@
 
 (defun main
   ((`(,config-file . ,args))
-   (let* ((config (hxgm30.store.migrations.dbschema:read-config config-file))
-          (dir (hxgm30.store.migrations.dbschema:dir config)))
+   (let* ((config (hxgm30.store.config:read-config config-file))
+          (dir (hxgm30.store.config:migration-dir config)))
      (io:format "Running migration files from ~p ...~n" `(,dir))
      (lfe_io:format "Using config: ~p~n" `(,config))
      (hxgm30.store.migrations.dbschema:startup config)
