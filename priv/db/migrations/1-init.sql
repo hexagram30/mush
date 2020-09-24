@@ -28,10 +28,10 @@ CREATE TABLE game (
 
 CREATE TABLE game_character (
        id SERIAL PRIMARY KEY,
-       owner CITEXT REFERENCES service_user(email),
-       game_id INTEGER,
-       display_name VARCHAR(255),
-       full_name VARCHAR(255),
+       owner_id INTEGER REFERENCES service_user(id),
+       game_id INTEGER REFERENCES game(id),
+       display_name VARCHAR(255) UNIQUE,
+       full_name VARCHAR(255) UNIQUE,
        created_on TIMESTAMP,
        updated_on TIMESTAMP
 );
