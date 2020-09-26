@@ -28,7 +28,7 @@
 ;;; -------------------------
 
 (defun start_link (callback args opts)
-  (log-debug "Starting TCP server supervisor ...")
+  (log-info "Starting TCP server supervisor ...")
   (let (((= `#(ok ,pid) started) (supervisor:start_link (MODULE)
                                                         `(,callback ,args ,opts))))
     (start_child pid)

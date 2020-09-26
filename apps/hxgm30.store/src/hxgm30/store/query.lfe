@@ -1,19 +1,32 @@
 (defmodule hxgm30.store.query
   (export all))
 
+(include-lib "logjam/include/logjam.hrl")
+
+(defun insert-tmpl () "INSERT INTO ~s (~s) VALUES (~p)")
 (defun select-from-tmpl () "SELECT ~s FROM ~s")
 (defun select-from-where-tmpl () "SELECT ~s FROM ~s WHERE ~s")
 
-(defun game-table () "game")
-(defun user-table () "service_user")
+(defun area-table () "area")
 (defun char-table () "game_character")
+(defun game-table () "game")
+(defun pathway-table () "pathway")
+(defun user-table () "service_user")
 
+(defun area-columns ()
+  "display_name,created_on,description")
+(defun area-add-columns ()
+  "display_name,created_on,description")
 (defun game-columns ()
   "id,display_name,play_type,description,status,created_on,updated_on")
-(defun user-columns ()
-  "id,email,ssh_public_key,created_on,updated_on")
 (defun char-columns ()
   "id,game_id,owner_id,display_name,full_name,created_on,updated_on,role")
+(defun pathway-columns ()
+  "display_name,created_on,description,from_area_id,to_area_id,direction")
+(defun pathway-add-columns ()
+  "display_name,created_on,description,from_area_id,to_area_id,direction")
+(defun user-columns ()
+  "id,email,ssh_public_key,created_on,updated_on")
 
 (defun query-args () '())
 (defun query-opts ()
@@ -48,13 +61,13 @@
 (defun characters (game-id)
   (let ((where (io_lib:format "game_id=~p" `(,game-id))))
     (clj:-> (select-from-where (char-columns) (char-table) where)
-            (trace-query)
+            ;;(trace-query)
             (query-all))))
 
 (defun character (game-id id)
   (let ((where (io_lib:format "game_id=~p AND id=~p" `(,game-id ,id))))
     (clj:-> (select-from-where (char-columns) (char-table) where)
-            (trace-query)
+            ;;(trace-query)
             (query-all))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -118,12 +131,58 @@
   (== #"wizard" (role game-id char-id)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;   Building & Traversing Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun add-area (name desc)
+  'tbd)
+
+(defun add-pathway (name desc from to dir)
+  'tbd)
+
+(defun area-pathways
+  ((id) (when (not (is_list id)))
+   (area-pathways (integer_to_list id)))
+  ((id)
+   (let ((where (io_lib:format "from_area_id=~s" `(,id))))
+     (clj:-> (select-from-where (pathway-columns) (pathway-table) where)
+             (trace-query)
+             (query-all)))))
+
+(defun area-exits (id)
+  (lists:map (lambda (x) (mref x #"direction"))
+             (area-pathways id)))
+
+(defun direction-lookup (exits-results)
+  (lists:map (lambda (x) `#(,(mref x #"direction") ,x)) exits-results))
+
+(defun area
+  ((id) (when (not (is_list id)))
+   (area (integer_to_list id)))
+  ((id)
+   (let ((where (io_lib:format "id=~s" `(,id))))
+     (clj:-> (select-from-where (area-columns) (area-table) where)
+             ;;(trace-query)
+             (query-one)))))
+
+(defun area-name (id)
+  (mref (area id) #"display_name"))
+
+(defun area-desc (id)
+  (mref (area id) #"description"))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;   Utility Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun trace-query (query)
-  (io:format "~s~n" `(,query))
+  (log-debug "Trace query: ~s~n" `(,query))
   query)
+
+(defun trace-data (data)
+  (log-debug "Trace data: ~p~n" `(,data))
+  data)
 
 (defun query-all (sql)
   (clj:-> sql

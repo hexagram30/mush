@@ -1,36 +1,34 @@
 (defmodule hxgm30.mush.shell
   (export all))
 
+(include-lib "logjam/include/logjam.hrl")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;   Main REPL Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun read ()
-  (tokenize (io:get_line (prompt))))
+  ;; XXX add scan function for properly handling:
+  ;; 1. role-specific commands
+  ;; 2. options data syntax
+  (tokenize (io:get_line (hxgm30.mush.config:prompt))))
 
-(defun mush-eval
+(defun evaluate
   (((= `(#(cmd ,cmd) #(args ,args) #(opts ,opts)) tokens))
-   ;; XXX change to debug log
-   (lfe_io:format "tokens: ~p~n" `(,tokens))
-   (case cmd
-     ;; player commands
-     ("help" (help))
-     ("quit" 'quit)
-     ("whoami" (hxgm30.mush.player:whoami args opts))
-     ;; builder commands
-     ("dig" (hxgm30.mush.builder:dig args opts))
-     ;; unknown command
-     (_ tokens))))
+   (log-debug "tokens: ~p~n" `(,tokens))
+   (command-dispatch cmd args opts)))
 
 (defun print (result)
-  (lfe_io:format "~p~n" `(,result))
+  (io:format "~s~n" `(,result))
   result)
 
 (defun loop
+  ;; Loop-exiting operations
   (('quit)
    'good-bye)
+  ;; Continue looping
   ((_)
-   (loop (print (mush-eval (read))))))
+   (loop (print (evaluate (read))))))
 
 (defun start ()
   (loop 'start))
@@ -48,13 +46,7 @@
 ;;;   Support Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun help ()
-  (io:format "~n*** HELP ***~n~n" '()))
-
-(defun prompt ()
-  (proplists:get_value
-   'prompt
-   (application:get_env 'hxgm30.mush 'shell (default-prompt))))
+;;; Read-phase
 
 (defun tokenize (string)
   (case (lists:map #'tokenize-option/1
@@ -73,3 +65,76 @@
   (case (string:lexemes string (pair-seps))
     (`(,k ,v) `#(,k ,v))
     (token (car token))))
+
+;;; Eval-phase
+
+(defun legal-directions ()
+  '("north" "n"
+    "east" "e"
+    "south" "s"
+    "west" "w"
+    "ne"
+    "nw"
+    "se"
+    "sw"
+    "up" "u"
+    "down" "d"
+    "inwards" "in"
+    "outwards" "out"
+    "enter"
+    "leave"))
+
+(defun legal-direction? (dir)
+  (lists:member dir (legal-directions)))
+
+(defun legal-move-commands ()
+  '("go" "move" "head"))
+
+(defun move? (cmd)
+  (lists:member cmd (legal-move-commands)))
+
+(defun normalize-direction (dir)
+  (case dir
+    ("n" "north")
+    ("e" "east")
+    ("s" "south")
+    ("w" "west")
+    ("u" "up")
+    ("d" "down")
+    ("in" "inwards")
+    ("out" "outwards")
+    (_ dir)))
+
+(defun command-dispatch (cmd args opts)
+  (cond
+   ;; Player commands
+   ((legal-direction? cmd) (move cmd args))
+   ((and (move? cmd) (legal-direction? (car args))) (move (car args) (cdr args)))
+   ((== "look" cmd) (look args))
+   ((== "help" cmd) (help))
+   ((== "quit" cmd) 'quit)
+   ((== "whoami" cmd) (hxgm30.mush.player:whoami args opts))
+   ;; Builder commands
+   ((== "dig" cmd) (hxgm30.mush.builder:dig args opts))
+   ;; Fall-through
+   ('true (unkn-cmd cmd))))
+
+(defun unkn-cmd (cmd)
+  (io:format "Unknown command: ~p~n" `(,cmd)))
+
+(defun help ()
+  (io:format "~n*** HELP ***~n~n" '()))
+
+(defun look
+  ;; XXX update once there are user sessions and IDs don't need to be passed
+  ;; anymore
+  ((`(,id . ,_))
+   (hxgm30.mush.player:look id)))
+
+(defun move
+  ;; XXX update once there are user sessions and IDs don't need to be passed
+  ;; anymore
+  ((dir `(,id . ,_))
+   (log-debug "ID, direction: ~p, ~p" `(,id ,dir))
+   (hxgm30.mush.player:move id (normalize-direction dir))))
+

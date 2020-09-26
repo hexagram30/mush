@@ -13,7 +13,7 @@
 ;;; --------------------------
 
 (defun start (_type _args)
-  (log-debug "Starting hxgm30.mush application ...")
+  (log-info "Starting hxgm30.mush application ...")
   (hxgm30.mush.sup:start_link)
   (hxgm30.registration:start_link))
 
