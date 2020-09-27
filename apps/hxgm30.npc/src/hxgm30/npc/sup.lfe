@@ -1,4 +1,4 @@
-(defmodule hxgm30.mail.sup
+(defmodule hxgm30.npc.sup
   (behaviour supervisor)
   (export
    ;; supervisor implementation
@@ -37,7 +37,7 @@
 ;;; -----------------------
 
 (defun init (_args)
-  `#(ok #(,(sup-flags) (,(child 'hxgm30.mail 'start_link '())))))
+  `#(ok #(,(sup-flags) (,(child 'hxgm30.npc 'start_link '())))))
 
 ;;; -----------------
 ;;; private functions

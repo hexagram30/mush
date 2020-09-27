@@ -1,4 +1,4 @@
-(defmodule hxgm30.mail.app
+(defmodule hxgm30.npc.app
   (behaviour application)
   (export
    ;; app implementation
@@ -13,9 +13,9 @@
 ;;; --------------------------
 
 (defun start (_type _args)
-  (log-info "Starting hxgm30.mail application ...")
-  (hxgm30.mail.sup:start_link))
+  (log-info "Starting hxgm30.npc application ...")
+  (hxgm30.npc.sup:start_link))
 
 (defun stop ()
-  (hxgm30.mail.sup:stop)
+  (hxgm30.npc.sup:stop)
   'ok)

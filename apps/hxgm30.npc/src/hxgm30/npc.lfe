@@ -1,4 +1,4 @@
-(defmodule hxgm30.mail
+(defmodule hxgm30.npc
   (behaviour gen_server)
   (export
     ;; gen_server implementation
