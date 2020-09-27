@@ -16,7 +16,7 @@
 
 ;;(defun SERVER () (MODULE))
 (defun sup-flags ()
-  `#M(strategy simple_one_for_one
+  `#m(strategy simple_one_for_one
       intensity 1000
       period 3600))
 
@@ -59,7 +59,7 @@
 ;;; -----------------
 
 (defun child (mod fun args)
-  `#M(id ,mod
+  `#m(id ,mod
       start #(,mod ,fun ,args)
       restart temporary
       shutdown brutal_kill

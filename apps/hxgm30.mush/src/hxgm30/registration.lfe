@@ -24,7 +24,7 @@
   (hxgm30.net.tcp-server:start_link
    (MODULE)
    '()
-   (application:get_env 'hxgm30.mush 'registration '())))
+   (hxgm30.mush.config:registration-tcp-opts)))
 
 ;;; -----------------------
 ;;; callback implementation
@@ -49,20 +49,24 @@
 ;;; ----------------------
 
 (defun send-confirmation-email (to)
-  ;; XXX Seems that email address with names + brackets breaks the sendmail
-  ;; wrapper right now
-  (sendmail:send `#m(to ,to
-                     from ,(hxgm30.mush.config:registrar-email)
-                     subject "New user account confirmation"
-                     message ,(++ "Hello from the Hexagram30 MUSH server!\n\n"
-                                  "Either you or someone using this email address "
-                                  "has registered as a new user. If it wasn't you, "
-                                  "you can ignore this email.\n\n"
-                                  "If it was you, "
-                                  "in the user registraion service (telnet session), "
-                                  "please execute the 'confirm' command with the "
-                                  "following confirmation code as an argument:\n\n"
-                                  (hxgm30.util:confirmation-code to)))))
+  (let ((subj "New user account confirmation")
+        (msg (++ "Hello from the Hexagram30 MUSH server!\n\n"
+                 "Either you or someone using this email address "
+                 "has registered as a new user. If it wasn't you, "
+                 "you can ignore this email.\n\n"
+                 "If it was you, "
+                 "in the user registraion service (telnet session), "
+                 "please execute the 'confirm' command with the "
+                 "following confirmation code as an argument:\n\n"
+                 (hxgm30.util:confirmation-code to))))
+    (case (sendmail:send `#m(to ,to
+                             from ,(hxgm30.mush.config:registrar-email)
+                             subject ,subj
+                             message ,msg))
+      (`#(0 ,_)
+       (log-info "Successfully sent registration email to ~s" `(,to)))
+      (`#(,exit-code ,err)
+       (log-error "Could not send registration email: ~p" `(,err))))))
 
 ;;; -----------------
 ;;; private functions

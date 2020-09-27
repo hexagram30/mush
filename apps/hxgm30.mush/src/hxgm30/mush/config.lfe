@@ -3,6 +3,7 @@
    (prompt 0)
    (registrar-email 0)
    (registration 0)
+   (registration-tcp-opts 0)
    (shell 0)
    (shell-wrap-width 0)))
 
@@ -20,3 +21,6 @@
 
 (defun registrar-email ()
   (proplists:get_value 'registrar-email (registration)))
+
+(defun registration-tcp-opts ()
+  (proplists:get_value 'tcp-opts (registration)))
