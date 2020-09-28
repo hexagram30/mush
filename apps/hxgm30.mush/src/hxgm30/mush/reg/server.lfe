@@ -9,7 +9,7 @@
   (behaviour gen_server)
   ;; gen_server implementation
   (export
-   (start_link 4))
+   (start_link 1))
   ;; callback implementation
   (export
    (init 1)
@@ -38,36 +38,28 @@
 (defun unknown-command () #(error "Unknown command."))
 
 (defrecord state
-  callback
   socket
-  args
-  opts
-  parent)
+  command)
 
 ;;; -------------------------
 ;;; gen_server implementation
 ;;; -------------------------
 
-(defun start_link (callback listen args opts)
-  (let ((genserver-args `(,callback ,listen ,args ,opts ,(self)))
-        (genserver-opts '()))
-    (log-debug "Calling gen_server:start with args: ~p" `(,genserver-args))
+(defun start_link (socket)
+  (log-info "Starting TCP server ...")
+  (let ((genserver-opts '()))
     (gen_server:start_link `#(local ,(SERVER))
                            (MODULE)
-                           genserver-args
+                           socket
                            genserver-opts)))
 
 ;;; -----------------------
 ;;; callback implementation
 ;;; -----------------------
 
-(defun init
-  ((`(,tcp-server ,listen ,args ,opts ,caller))
-  `#(ok ,(make-state callback tcp-server
-                     socket listen
-                     args args
-                     opts opts
-                     parent caller))))
+(defun init (socket)
+  (gen_server:cast (self) 'accept)
+  `#(ok ,(make-state socket socket)))
 
 (defun handle_info
   ((`#(EXIT ,_from normal) st)
@@ -76,47 +68,31 @@
   ((`#(EXIT ,pid ,reason) st)
    (log-error "Process ~p exited! (Reason: ~p)~n" `(,pid ,reason))
    `#(noreply ,st))
-  (('timeout (= (match-state callback mod
-                             socket sock
-                             args as
-                             parent caller) st))
+  (('timeout st)
    (log-debug "Handling TCP timeout info message ...")
-   (let ((`#(ok ,client-sock) (gen_tcp:accept sock)))
-     (case (call mod 'handle_accept client-sock as)
-       (`#(close ,new-args)
-        (gen_tcp:close client-sock)
-        `#(noreply ,(set-state-args st new-args)))
-       (`#(ok ,new-args)
-        (hxgm30.net.tcp.sup:start_child caller)
-        (inet:setopts client-sock '(#(active once)))
-        `#(noreply (set-state st socket client-socket args new-args))))))
-  ((`#(tcp ,sock ,data) (= (match-state callback mod
-                                        args as) st))
+   `#(noreply ,st))
+  ((`#(tcp ,sock ,data) (= (match-state command cmd) st))
    (log-debug "Handling TCP info message ...")
-   (case (call mod 'handle_data sock data as)
-     (`#(close ,new-args)
-      (gen_tcp:close sock)
-      `#(noreply ,(set-state-args st new-args)))
-     (`#(ok ,new-args)
-      (inet:setopts sock '(#(active once)))
-      `#(noreply ,(set-state-args st new-args)))))
-  ((`#(tcp_closed ,sock) (= (match-state callback mod
-                                         args as) st))
+   `#(noreply ,st))
+  ((`#(tcp_closed ,sock) st)
    (log-debug "Handling TCP closed info message ...")
-   (call mod 'handle_close sock as)
    `#(stop normal ,st))
-  ((`#(tcp_error ,sock) (= (match-state callback mod
-                                         args as) st))
+  ((`#(tcp_error ,sock) st)
    (log-debug "Handling TCP error info message ...")
-   (call mod 'handle_close sock as)
    `#(stop normal ,st))
   ((msg st)
    (log-debug "Got unexpected message: ~p" `(,msg))
    `#(noreply ,st)))
 
-(defun handle_cast (msg state)
-  (log-debug "Got cast msg: ~p" `(,msg))
-  `#(noreply ,state))
+(defun handle_cast
+  (('accept (= (match-state socket listen-sock) st))
+   (let ((`#(ok ,accept-sock) (gen_tcp:accept listen-sock)))
+     (hxgm30.mush.reg.sup:start-socket)
+     (! accept-sock (++ (banner) (prompt)) '())
+     `#(noreply ,(set-state-socket st listen-sock))))
+  ((msg state)
+   (log-debug "Got cast msg: ~p" `(,msg))
+   `#(noreply ,state)))
 
 (defun handle_call
   ((`#(state) _from st)
@@ -140,6 +116,10 @@
 (defun stop ()
   'ok)
 
+(defun ! (sock str args)
+  (let (('ok (gen_tcp:send sock (io_lib:format (++ str "~n") args)))
+        ('ok (inet:setopts sock `(#(active once)))))
+    'ok))
 ;;; ----------------------
 ;;; registration functions
 ;;; ----------------------
