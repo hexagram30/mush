@@ -1,12 +1,17 @@
 (defmodule hxgm30.util
   (export
    (confirmation-code 1)
+   (read-priv-file 1)
+   (tcp-send 2)
    (uuid3 1) (uuid3 2)
    (uuid4 0) (uuid4 1)
    (uuid->ascii-quad 1)))
 
+(include-lib "logjam/include/logjam.hrl")
+
 (defun ascii-a () 65)
 (defun alphabet-len () 25)
+(defun app () 'hxgm30.mush)
 
 (defun uuid3 (data)
   (uuid3 data #m()))
@@ -45,3 +50,22 @@
   ((data)
    (lists:map #'->ascii-upper/1
               (clj:partition 4 (binary:bin_to_list data)))))
+
+(defun tcp-send (sock iolist)
+  (case (gen_tcp:send sock iolist)
+    ('ok (case (inet:setopts sock `(#(active once)))
+           ('ok 'ok)
+           (err (log-error "~p" `(,err)))))
+    (err (progn
+           (log-warn "Problem sending data: ~p" `(,iolist))
+           (log-error "~p" `(,err))
+           err))))
+
+(defun read-priv-file (rel-path)
+  (let ((filename (filename:join (code:priv_dir (app))
+                                 rel-path)))
+    (case (file:read_file filename)
+      (`#(ok ,data) data)
+      (err (progn
+             (log-warn "Problem reading file: ~p" `(,filename))
+             (log-error "~p" `(,err)))))))

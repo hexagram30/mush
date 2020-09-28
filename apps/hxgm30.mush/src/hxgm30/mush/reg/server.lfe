@@ -21,21 +21,11 @@
   ;; additional
   (export
    (stop 0))
-  ;; registration api
-  (export
-   (send-confirmation-email 1))
   ;; debug
   (export
    (state 0)))
 
 (include-lib "logjam/include/logjam.hrl")
-
-;;; ----------------
-;;; config functions
-;;; ----------------
-
-(defun SERVER () (MODULE))
-(defun unknown-command () #(error "Unknown command."))
 
 (defrecord state
   socket
@@ -45,21 +35,19 @@
 ;;; gen_server implementation
 ;;; -------------------------
 
-(defun start_link (socket)
-  (log-info "Starting TCP server ...")
-  (let ((genserver-opts '()))
-    (gen_server:start_link `#(local ,(SERVER))
-                           (MODULE)
-                           socket
-                           genserver-opts)))
+(defun start_link (sock)
+  (log-debug "Starting TCP server ...")
+  (gen_server:start_link (MODULE)
+                         sock
+                         (genserver-opts)))
 
 ;;; -----------------------
 ;;; callback implementation
 ;;; -----------------------
 
-(defun init (socket)
+(defun init (sock)
   (gen_server:cast (self) 'accept)
-  `#(ok ,(make-state socket socket)))
+  `#(ok ,(make-state socket sock)))
 
 (defun handle_info
   ((`#(EXIT ,_from normal) st)
@@ -71,9 +59,12 @@
   (('timeout st)
    (log-debug "Handling TCP timeout info message ...")
    `#(noreply ,st))
-  ((`#(tcp ,sock ,data) (= (match-state command cmd) st))
+  ((`#(tcp ,sock ,data) st)
    (log-debug "Handling TCP info message ...")
-   `#(noreply ,st))
+   (let ((parsed (hxgm30.mush.shell:tokenize (string:trim data))))
+     (log-debug "Parsed input: ~p" `(,parsed))
+     (gen_server:cast (self) 'dispatch)
+     `#(noreply ,(set-state-command st parsed))))
   ((`#(tcp_closed ,sock) st)
    (log-debug "Handling TCP closed info message ...")
    `#(stop normal ,st))
@@ -86,13 +77,27 @@
 
 (defun handle_cast
   (('accept (= (match-state socket listen-sock) st))
+   (log-debug "Matched accept message.")
+   (log-debug "Got listen socket: ~p" `(,listen-sock))
+   (log-debug "Got state: ~p" `(,st))
+   (log-debug "Waiting for connection ...")
    (let ((`#(ok ,accept-sock) (gen_tcp:accept listen-sock)))
+     (log-debug "Got connection on accept socket: ~p" `(,accept-sock))
      (hxgm30.mush.reg.sup:start-socket)
-     (! accept-sock (++ (banner) (prompt)) '())
-     `#(noreply ,(set-state-socket st listen-sock))))
-  ((msg state)
+     (log-debug "Sending banner and prompt ...")
+     (hxgm30.util:tcp-send accept-sock
+                           (hxgm30.mush.reg.shell:welcome))
+     (log-debug "Setting new socket in server state ...")
+     `#(noreply ,(set-state-socket st accept-sock))))
+  (('dispatch (= (match-state command parsed socket listen-sock) st))
+   (hxgm30.mush.reg.shell:command-dispatch (self) listen-sock parsed)
+   `#(noreply ,(set-state-command st '())))
+  (('quit (= (match-state socket sock) st))
+   (gen_tcp:close sock)
+   `#(stop normal ,st))
+  ((msg st)
    (log-debug "Got cast msg: ~p" `(,msg))
-   `#(noreply ,state)))
+   `#(noreply ,st)))
 
 (defun handle_call
   ((`#(state) _from st)
@@ -102,11 +107,11 @@
    `#(reply ,(unknown-command) ,st)))
 
 (defun terminate (_reason _st)
-  (log-info "Terminating ...")
+  (log-notice "Terminating ...")
   'ok)
 
 (defun code_change (_old-version st _extra)
-  (log-info "Code change ...")
+  (log-notice "Code change ...")
   `#(ok ,st))
 
 ;;; --------------------
@@ -116,43 +121,17 @@
 (defun stop ()
   'ok)
 
-(defun ! (sock str args)
-  (let (('ok (gen_tcp:send sock (io_lib:format (++ str "~n") args)))
-        ('ok (inet:setopts sock `(#(active once)))))
-    'ok))
-;;; ----------------------
-;;; registration functions
-;;; ----------------------
-
-(defun send-confirmation-email (to)
-  (let ((subj "New user account confirmation")
-        (msg (++ "Hello from the Hexagram30 MUSH server!\n\n"
-                 "Either you or someone using this email address "
-                 "has registered as a new user. If it wasn't you, "
-                 "you can ignore this email.\n\n"
-                 "If it was you, "
-                 "in the user registraion service (telnet session), "
-                 "please execute the 'confirm' command with the "
-                 "following confirmation code as an argument:\n\n"
-                 (hxgm30.util:confirmation-code to))))
-    (case (sendmail:send `#m(to ,to
-                             from ,(hxgm30.mush.config:reg-email)
-                             subject ,subj
-                             message ,msg))
-      (`#(0 ,_)
-       (log-info "Successfully sent registration email to ~s" `(,to)))
-      (`#(,exit-code ,err)
-       (log-error "Could not send registration email: ~p" `(,err))))))
-
-(defun banner ()
-  "BANNER\r\n")
-
-(defun prompt ()
-  "registration> \r\n")
-
 ;;; ---------------
 ;;; debug functions
 ;;; ---------------
 
 (defun state ()
   (gen_server:call (SERVER) `#(state)))
+
+;;; -----------------
+;;; private functions
+;;; -----------------
+
+(defun SERVER () (MODULE))
+(defun genserver-opts () '())
+(defun unknown-command () #(error "Unknown command."))

@@ -37,7 +37,7 @@
 ;;;   Constants   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun word-sep () " \n")
+(defun word-sep () " \r\n")
 (defun pair-seps () "<|>")
 (defun default-prompt () "hxgm30> ")
 (defun default-tokens () '(#(cmd "") #(args '()) #(opts '())))

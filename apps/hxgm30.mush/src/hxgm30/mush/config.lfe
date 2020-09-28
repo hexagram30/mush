@@ -2,6 +2,7 @@
   (export
    (prompt 0)
    (reg 0)
+   (reg-banner 0)
    (reg-email 0)
    (reg-listener 0)
    (reg-listener-pool-size 0)
@@ -15,6 +16,9 @@
 
 (defun reg ()
   (application:get_env 'hxgm30.mush 'registration '()))
+
+(defun reg-banner ()
+  (proplists:get_value 'banner (reg)))
 
 (defun reg-email ()
   (proplists:get_value 'registrar-email (reg)))
