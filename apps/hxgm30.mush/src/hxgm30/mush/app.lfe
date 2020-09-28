@@ -15,7 +15,7 @@
 (defun start (_type _args)
   (log-info "Starting hxgm30.mush application ...")
   (hxgm30.mush.sup:start_link)
-  (hxgm30.registration:start_link))
+  (hxgm30.mush.reg.sup:start_link))
 
 (defun stop ()
   (hxgm30.mush.sup:stop)

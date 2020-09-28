@@ -1,4 +1,4 @@
-(defmodule hxgm30.net.tcp.sup
+(defmodule hxgm30.mush.reg.sup
   (behaviour supervisor)
   ;; supervisor implementation
   (export
