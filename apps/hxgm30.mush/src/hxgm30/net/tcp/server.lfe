@@ -1,3 +1,10 @@
+;;;; Notes on implementing TCP servers:
+;;;; * https://github.com/ogolosovskiy/non_blocking_tcp_server
+;;;; * http://20bits.com/article/erlang-a-generalized-tcp-server
+;;;; * https://learnyousomeerlang.com/buckets-of-sockets
+;;;;
+;;;; Work being tracked here:
+;;;; * https://github.com/hexagram30/mush/issues/3
 (defmodule hxgm30.net.tcp.server
   (behaviour gen_server)
   ;; gen_server implementation
