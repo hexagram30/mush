@@ -1,5 +1,5 @@
 ;;;; This module contains commands that all players are allowed to call.
-(defmodule hxgm30.mush.player
+(defmodule hxgm30.mush.cmd.player
   (export all))
 
 (include-lib "logjam/include/logjam.hrl")

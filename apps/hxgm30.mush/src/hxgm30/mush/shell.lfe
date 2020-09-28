@@ -113,9 +113,9 @@
    ((== "look" cmd) (look args))
    ((== "help" cmd) (help))
    ((== "quit" cmd) 'quit)
-   ((== "whoami" cmd) (hxgm30.mush.player:whoami args opts))
+   ((== "whoami" cmd) (hxgm30.mush.cmd.player:whoami args opts))
    ;; Builder commands
-   ((== "dig" cmd) (hxgm30.mush.builder:dig args opts))
+   ((== "dig" cmd) (hxgm30.mush.cmd.builder:dig args opts))
    ;; Fall-through
    ('true (unkn-cmd cmd))))
 
@@ -129,12 +129,12 @@
   ;; XXX update once there are user sessions and IDs don't need to be passed
   ;; anymore
   ((`(,id . ,_))
-   (hxgm30.mush.player:look id)))
+   (hxgm30.mush.cmd.player:look id)))
 
 (defun move
   ;; XXX update once there are user sessions and IDs don't need to be passed
   ;; anymore
   ((dir `(,id . ,_))
    (log-debug "ID, direction: ~p, ~p" `(,id ,dir))
-   (hxgm30.mush.player:move id (normalize-direction dir))))
+   (hxgm30.mush.cmd.player:move id (normalize-direction dir))))
 

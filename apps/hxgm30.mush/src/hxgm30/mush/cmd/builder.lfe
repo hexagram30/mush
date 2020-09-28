@@ -1,6 +1,6 @@
 ;;;; This module contains commands that only players with the 'builder' role are
 ;;;; allowed to call.
-(defmodule hxgm30.mush.builder
+(defmodule hxgm30.mush.cmd.builder
   (export all))
 
 (defun dig (args opts)
