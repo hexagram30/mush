@@ -19,4 +19,5 @@
 
 (defun stop ()
   (hxgm30.mush.sup:stop)
+  ;; XXX add stop for registration server
   'ok)
