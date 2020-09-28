@@ -5,7 +5,10 @@
    (start_link 0))
   ;; callback implementation
   (export
-   (init 1)))
+   (init 1))
+  ;; public functions
+  (export
+   (start-socket 0)))
 
 (include-lib "logjam/include/logjam.hrl")
 
@@ -44,6 +47,13 @@
                      `(,listen-sock)))))))
 
 ;;; -----------------
+;;; public functions
+;;; -----------------
+
+(defun start-socket ()
+  (supervisor:start_child (MODULE) '()))
+
+;;; -----------------
 ;;; private functions
 ;;; -----------------
 
@@ -54,9 +64,6 @@
       shutdown 1000
       type worker
       modules (,mod)))
-
-(defun start-socket ()
-  (supervisor:start_child (MODULE) '()))
 
 (defun listener-pool ()
   (log-debug "Creating listener pool ...")

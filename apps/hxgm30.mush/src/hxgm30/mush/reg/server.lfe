@@ -136,7 +136,7 @@
                  "following confirmation code as an argument:\n\n"
                  (hxgm30.util:confirmation-code to))))
     (case (sendmail:send `#m(to ,to
-                             from ,(hxgm30.mush.config:registrar-email)
+                             from ,(hxgm30.mush.config:reg-email)
                              subject ,subj
                              message ,msg))
       (`#(0 ,_)
