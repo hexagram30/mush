@@ -4,6 +4,9 @@
    (reg 0)
    (reg-banner 0)
    (reg-email 0)
+   (reg-email-from 0)
+   (reg-email-subj 0)
+   (reg-email-tmpl 0)
    (reg-listener 0)
    (reg-listener-pool-size 0)
    (reg-listener-port 0)
@@ -21,7 +24,16 @@
   (proplists:get_value 'banner (reg)))
 
 (defun reg-email ()
-  (proplists:get_value 'registrar-email (reg)))
+  (proplists:get_value 'email (reg)))
+
+(defun reg-email-from ()
+  (proplists:get_value 'from (reg-email)))
+
+(defun reg-email-subj ()
+  (proplists:get_value 'subject (reg-email)))
+
+(defun reg-email-tmpl ()
+  (proplists:get_value 'template (reg-email)))
 
 (defun reg-listener ()
   (proplists:get_value 'listener (reg)))

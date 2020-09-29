@@ -1,26 +1,110 @@
 (defmodule hxgm30.mush.reg.shell
   (export
-   (banner 0)
-   (command-dispatch 3)
+   (banner 1)
+   (command-dispatch 2)
    (prompt 0)
    (send-confirmation-email 1)
-   (welcome 0)))
+   (welcome 1)))
 
+(include-lib "hxgm30.mush/include/registration.lfe")
 (include-lib "logjam/include/logjam.hrl")
 
 (defun command-dispatch
-  ((server sock `(#(cmd ,cmd) #(args ,args) #(opts ,opts)))
-   (case cmd
-     ("help" (send sock #"HELP TEXT"))
-     ("" (send sock))
-     ("quit" (gen_server:cast server 'quit))
-     (_ (send sock #"UNKNOWN COMMAND")))))
+  ((server (= (match-state command parsed session-id id) st))
+   (let ((`(#(cmd ,cmd) ,_ ,_) parsed))
+     (case cmd
+       ("" (empty st))
+       ("banner" (resend-banner st))
+       ("confirm" (confirm st))
+       ("id" (id st))
+       ("help" (help st))
+       ("quit" (quit server))
+       ("register" (register st))
+       ("resume" (resume server st))
+       ("show-all" (show-all st))
+       ("status" (status st))
+       (_ (unknown st))))))
+
+;;; -----------------
+;;; command functions
+;;; -----------------
+
+(defun confirm
+  ((server (match-state socket sock command parsed))
+   (let ((`(,_ #(args (,conf-code . ,_)) ,_) parsed))
+     (gen_server:cast server `#(confirm ,conf-code))
+     (send sock
+           (io_lib:format "Check your email for a confirmation code.")))))
+
+(defun empty
+  (((match-state socket sock))
+   (send sock)))
+
+(defun help
+  (((match-state socket sock))
+   (send sock #"HELP TEXT")))
+
+(defun id
+  (((match-state socket sock session-id id))
+   (send sock id)))
+
+(defun quit (server)
+  (gen_server:cast server 'quit))
+
+(defun register
+  ((server (match-state socket sock command parsed))
+   (let ((`(,_ #(args (,email . ,_)) ,_) parsed))
+     (gen_server:cast server `#(register ,email))
+     (send sock
+           (io_lib:format "Check your email for a confirmation code.")))))
+
+(defun resend-banner
+  (((match-state socket sock session-id id))
+   (send sock (banner id) 0)))
+
+(defun resume
+  ((server (match-state socket sock command parsed))
+   (let ((`(,_ #(args (,id . ,_)) ,_) parsed))
+     (gen_server:cast server `#(session-id ,id))
+     (send sock (io_lib:format "Your current session ID is now ~s" `(,id))))))
+
+(defun show-all (st)
+  (let ((msg (io_lib:format (++ "Data for id=~s:~n"
+                                "* Email address: ~s~n"
+                                "* Confirmed status: ~s~n"
+                                "* SSH key: ~s~n")
+                            `(,(state-session-id st)
+                              ,(state-email st)
+                              ,(state-confirmed st)
+                              ,(state-ssh-key st)))))
+    (send sock msg)))
+
+(defun ssh-key
+  ((server (match-state socket sock command parsed))
+   (let ((`(,_ #(args (,key . ,_)) ,_) parsed))
+     (gen_server:cast server `#(ssh-key ,key))
+     (send sock "ok"))))
+
+(defun status
+  (((match-state socket sock confirmed? confd?))
+   (case confd?
+     ('true (send sock "Confirmed."))
+     ('false (send sock "Awaiting confirmation.")))))
+
+(defun unknown
+  (((match-state socket sock))
+   (send sock #"UNKNOWN COMMAND")))
+
+
+;;; -----------------
+;;; support functions
+;;; -----------------
 
 (defun send (sock)
   (send sock "" 0))
 
 (defun send (sock msg)
-  (send sock msg 2))
+  (send sock msg 1))
 
 (defun send (sock msg nl-count)
   (hxgm30.util:tcp-send
@@ -32,32 +116,23 @@
 (defun newline () #"\r\n")
 (defun prompt ()  #"registration> ")
 
-(defun banner ()
-  (list (hxgm30.util:read-priv-file
-         (hxgm30.mush.config:reg-banner))
+(defun banner (id)
+  (list (io_lib:format (hxgm30.util:read-priv-file
+                        (hxgm30.mush.config:reg-banner))
+                       `(,id))
         (newline)
         (newline)))
 
-(defun welcome ()
-  (list (banner) (prompt)))
+(defun welcome (id)
+  (list (banner id) (prompt)))
 
 (defun send-confirmation-email (to)
-  (let (;; XXX move subject text to sys.config
-        (subj "New user account confirmation")
-        ;; XXX move msg content to priv text/confirm.email and then
-        ;; read with hxgm30.util:read-priv-file/1
-        (msg (++ "Hello from the Hexagram30 MUSH server!\n\n"
-                 "Either you or someone using this email address "
-                 "has registered as a new user. If it wasn't you, "
-                 "you can ignore this email.\n\n"
-                 "If it was you, "
-                 "in the user registraion service (telnet session), "
-                 "please execute the 'confirm' command with the "
-                 "following confirmation code as an argument:\n\n"
-                 (hxgm30.util:confirmation-code to))))
+  (let ((msg (io_lib:format (hxgm30.util:read-priv-file
+                             (hxgm30.mush.config:reg-email-tmpl))
+                            `(,(hxgm30.util:confirmation-code to)))))
     (case (sendmail:send `#m(to ,to
-                             from ,(hxgm30.mush.config:reg-email)
-                             subject ,subj
+                             from ,(hxgm30.mush.config:reg-email-from)
+                             subject ,(hxgm30.mush.config:reg-email-subj)
                              message ,msg))
       (`#(0 ,_)
        (log-info "Successfully sent registration email to ~s" `(,to)))
