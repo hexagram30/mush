@@ -100,8 +100,8 @@
    ;; XXX Update state data with DB results
    `#(noreply ,(set-state-session-id st id)))
   ((`#(ssh-key ,key) st)
-   ;; XXX Make call to postgres to set email and session id
-   `#(noreply ,(set-state-email st email)))
+   ;; XXX Make call to postgres to set SSH key
+   `#(noreply ,(set-state-email st key)))
   (('quit (= (match-state socket sock) st))
    (gen_tcp:close sock)
    `#(stop normal ,st))
@@ -133,6 +133,5 @@
 ;;; private functions
 ;;; -----------------
 
-(defun SERVER () (MODULE))
 (defun genserver-opts () '())
 (defun unknown-command () #(error "Unknown command."))

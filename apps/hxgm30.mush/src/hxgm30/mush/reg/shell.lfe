@@ -15,13 +15,14 @@
      (case cmd
        ("" (empty st))
        ("banner" (resend-banner st))
-       ("confirm" (confirm st))
+       ("confirm" (confirm server st))
        ("id" (id st))
        ("help" (help st))
        ("quit" (quit server))
-       ("register" (register st))
+       ("email" (email server st))
        ("resume" (resume server st))
        ("show-all" (show-all st))
+       ("ssh-key" (ssh-key server st))
        ("status" (status st))
        (_ (unknown st))))))
 
@@ -33,8 +34,7 @@
   ((server (match-state socket sock command parsed))
    (let ((`(,_ #(args (,conf-code . ,_)) ,_) parsed))
      (gen_server:cast server `#(confirm ,conf-code))
-     (send sock
-           (io_lib:format "Check your email for a confirmation code.")))))
+     (send sock "ok"))))
 
 (defun empty
   (((match-state socket sock))
@@ -51,12 +51,12 @@
 (defun quit (server)
   (gen_server:cast server 'quit))
 
-(defun register
+(defun email
   ((server (match-state socket sock command parsed))
    (let ((`(,_ #(args (,email . ,_)) ,_) parsed))
      (gen_server:cast server `#(register ,email))
      (send sock
-           (io_lib:format "Check your email for a confirmation code.")))))
+           (io_lib:format "Check your email for a confirmation code." '())))))
 
 (defun resend-banner
   (((match-state socket sock session-id id))
@@ -68,16 +68,17 @@
      (gen_server:cast server `#(session-id ,id))
      (send sock (io_lib:format "Your current session ID is now ~s" `(,id))))))
 
-(defun show-all (st)
-  (let ((msg (io_lib:format (++ "Data for id=~s:~n"
-                                "* Email address: ~s~n"
-                                "* Confirmed status: ~s~n"
-                                "* SSH key: ~s~n")
-                            `(,(state-session-id st)
-                              ,(state-email st)
-                              ,(state-confirmed st)
-                              ,(state-ssh-key st)))))
-    (send sock msg)))
+(defun show-all
+  (((= (match-state socket sock session-id id) st))
+   (let* ((tmpl (++ "Data for id=~s:~n"
+                    "* Email address: ~s~n"
+                    "* Confirmed status: ~s~n"
+                    "* SSH key: ~s~n"))
+          (msg (io_lib:format tmpl `(,(state-session-id st)
+                                     ,(state-email st)
+                                     ,(state-confirmed? st)
+                                     ,(state-ssh-key st)))))
+     (send sock msg))))
 
 (defun ssh-key
   ((server (match-state socket sock command parsed))
@@ -86,8 +87,8 @@
      (send sock "ok"))))
 
 (defun status
-  (((match-state socket sock confirmed? confd?))
-   (case confd?
+  (((match-state socket sock confirmed confd))
+   (case confd
      ('true (send sock "Confirmed."))
      ('false (send sock "Awaiting confirmation.")))))
 

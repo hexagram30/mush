@@ -3,4 +3,5 @@
   command
   session-id
   email
-  ssh-key)
+  ssh-key
+  confirmed)
