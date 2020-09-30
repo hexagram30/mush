@@ -7,6 +7,7 @@
    (reg-email-from 0)
    (reg-email-subj 0)
    (reg-email-tmpl 0)
+   (reg-help-text 0)
    (reg-listener 0)
    (reg-listener-pool-size 0)
    (reg-listener-port 0)
@@ -34,6 +35,9 @@
 
 (defun reg-email-tmpl ()
   (proplists:get_value 'template (reg-email)))
+
+(defun reg-help-text ()
+  (proplists:get_value 'help (reg)))
 
 (defun reg-listener ()
   (proplists:get_value 'listener (reg)))

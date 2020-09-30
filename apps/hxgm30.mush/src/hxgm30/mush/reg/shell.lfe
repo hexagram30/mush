@@ -16,10 +16,11 @@
        ("" (empty st))
        ("banner" (resend-banner st))
        ("confirm" (confirm server st))
-       ("id" (id st))
-       ("help" (help st))
-       ("quit" (quit server))
        ("email" (email server st))
+       ("help" (help st))
+       ("id" (id st))
+       ("quit" (quit server))
+       ("resend" (resend-code server st))
        ("resume" (resume server st))
        ("show-all" (show-all st))
        ("ssh-key" (ssh-key server st))
@@ -36,13 +37,20 @@
      (gen_server:cast server `#(confirm ,conf-code))
      (send sock "ok"))))
 
+(defun email
+  ((server (match-reg-state socket sock command parsed))
+   (let ((`(,_ #(args (,email . ,_)) ,_) parsed))
+     (gen_server:cast server `#(register ,email))
+     (send sock "Check your email for a confirmation code."))))
+
 (defun empty
   (((match-reg-state socket sock))
    (send sock)))
 
 (defun help
   (((match-reg-state socket sock))
-   (send sock #"HELP TEXT")))
+   (send sock  (hxgm30.util:read-priv-file
+                (hxgm30.mush.config:reg-help-text)))))
 
 (defun id
   (((match-reg-state socket sock session-id id))
@@ -51,16 +59,15 @@
 (defun quit (server)
   (gen_server:cast server 'quit))
 
-(defun email
-  ((server (match-reg-state socket sock command parsed))
-   (let ((`(,_ #(args (,email . ,_)) ,_) parsed))
-     (gen_server:cast server `#(register ,email))
-     (send sock
-           (io_lib:format "Check your email for a confirmation code." '())))))
 
 (defun resend-banner
   (((match-reg-state socket sock session-id id))
    (send sock (banner id) 0)))
+
+(defun resend-code
+  ((server (match-reg-state socket sock))
+     (gen_server:cast server 'resend-confirmation)
+     (send sock "Check your email for a confirmation code.")))
 
 (defun resume
   ((server (match-reg-state socket sock command parsed))
@@ -96,7 +103,7 @@
 
 (defun unknown
   (((match-reg-state socket sock))
-   (send sock #"UNKNOWN COMMAND")))
+   (send sock #"ERROR: unknown command")))
 
 ;;; -----------------
 ;;; support functions
@@ -121,9 +128,7 @@
 (defun banner (id)
   (list (io_lib:format (hxgm30.util:read-priv-file
                         (hxgm30.mush.config:reg-banner))
-                       `(,id))
-        (newline)
-        (newline)))
+                       `(,id))))
 
 (defun welcome (id)
   (list (banner id) (prompt)))

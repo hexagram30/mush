@@ -1,0 +1,26 @@
+
+
+Available REGISTRATION SERVICE commands:
+
+banner            - re-display the logon banner
+confirm CONF-CODE - verify email address and account with the verification
+                    code that was sent to you
+email             - display the email address currently saved to this session
+email NEW-EMAIL   - set the email address for this account; note that this
+                    will trigger an email confirmation to be sent to the
+                    provided email
+help              - display this usage information
+id                - display the current session ID
+id NEW-ID         - change the session ID; required to resume a previous
+                    session (e.g., if you are disconnected before you have
+                    confirmed your account)
+quit              - disconnect from the registration server
+resend            - resend email with confirmation code to the stored email
+                    address
+resume ID         - resume a previous session that was saved with the given
+                    id
+show-all          - display all current session data
+ssh-key           - display public SSH key currently saved to this session
+ssk-key NEW-KEY   - set the public SSH key for this account
+status            - check/verify the confirmation status
+
