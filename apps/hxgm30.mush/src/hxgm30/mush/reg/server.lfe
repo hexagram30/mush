@@ -86,16 +86,16 @@
    ;; XXX Compare to passed conf code
    ;; XXX Make call to postgres to set confirmed to TRUE is equal
    `#(noreply ,st))
-  ((`#(register ,email) st)
+  ((`#(register ,email) (= (match-reg-state session-id id) st))
    (log-debug "Got registration email ~p" `(,email))
-   ;; XXX Make call to postgres to set email and session id
+   (hxgm30.store.query:set-user-email id email)
+   (hxgm30.mush.reg.shell:send-confirmation-code email)
    `#(noreply ,(set-reg-state-email st email)))
   ((`#(session-id ,id) st)
-   ;; XXX Make call to postgres to get all data WHERE session_id = id
-   ;; XXX Update state data with DB results
    `#(noreply ,(set-reg-state-session-id st id)))
-  ((`#(ssh-key ,key) st)
-   ;; XXX Make call to postgres to set SSH key
+  ((`#(ssh-key ,key) (= (match-reg-state session-id id) st))
+   (let ((result (hxgm30.store.query:set-user-ssh-key id key)))
+     (log-debug "Result: ~p" `(,result)))
    `#(noreply ,(set-reg-state-ssh-key st key)))
   (('quit (= (match-reg-state socket sock) st))
    (gen_tcp:close sock)

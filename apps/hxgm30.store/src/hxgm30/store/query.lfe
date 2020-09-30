@@ -6,7 +6,11 @@
 (defun insert-tmpl () "INSERT INTO ~s (~s) VALUES (~p)")
 (defun select-from-tmpl () "SELECT ~s FROM ~s")
 (defun select-from-where-tmpl () "SELECT ~s FROM ~s WHERE ~s")
-
+(defun update-tmpl () "UPDATE ~s SET ~s WHERE ~s")
+(defun upsert-tmpl () (++ "INSERT INTO ~s (~s) VALUES (~s) "
+                          "ON CONFLICT (~s) DO UPDATE SET ~s"))
+(defun upsert-where-tmpl () (++ "INSERT INTO ~s (~s) VALUES (~s) "
+                                "ON CONFLICT (~s) DO UPDATE SET ~s WHERE ~s"))
 (defun area-table () "area")
 (defun char-table () "game_character")
 (defun game-table () "game")
@@ -32,6 +36,41 @@
 (defun query-opts ()
   #m(decode_opts (return_rows_as_maps)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;   Users Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun users ()
+  (clj:-> (select-from (user-columns) (user-table))
+          (query-all)))
+
+(defun user (id)
+  (let ((where (io_lib:format "id=~p" `(,id))))
+    (clj:-> (select-from-where (user-columns) (user-table) where)
+            (query-one))))
+
+(defun set-user-email (id email)
+  (let ((columns "registration_id, email")
+        (values (io_lib:format "'~s', '~s'" `(,id ,email)))
+        (set (io_lib:format "email = '~s'" `(,email)))
+        (where (io_lib:format "registration_id='~s'" `(,id))))
+    (clj:-> (upsert (user-table) columns values "registration_id" set)
+            (trace-query)
+            (transact))))
+
+(defun set-user-ssh-key (id key)
+  (let ((columns "registration_id, ssh_public_key")
+        (values (io_lib:format "'~s', '~s'" `(,id ,key)))
+        (set (io_lib:format "ssh_public_key = '~s'" `(,key)))
+        (where (io_lib:format "registration_id='~s'" `(,id))))
+    (clj:-> (upsert (user-table) columns values "registration_id" set)
+            (trace-query)
+            (transact))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;   Games Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defun games ()
   (clj:-> (select-from (game-columns) (game-table))
           (query-all)))
@@ -49,14 +88,9 @@
 (defun game-id (name)
   (mref (game-by-name name) #"id"))
 
-(defun users ()
-  (clj:-> (select-from (user-columns) (user-table))
-          (query-all)))
-
-(defun user (id)
-  (let ((where (io_lib:format "id=~p" `(,id))))
-    (clj:-> (select-from-where (user-columns) (user-table) where)
-            (query-one))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;   Characters Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun characters (game-id)
   (let ((where (io_lib:format "game_id=~p" `(,game-id))))
@@ -189,6 +223,11 @@
           (pgo:query (query-args) (query-opts))
           (mref 'rows)))
 
+(defun transact (sql)
+  (pgo:transaction
+   (lambda ()
+     (pgo:query sql (query-args) (query-opts)))))
+
 (defun query-one (sql)
   (car (query-all sql)))
 
@@ -197,3 +236,15 @@
 
 (defun select-from-where (columns table where)
   (io_lib:format (select-from-where-tmpl) `(,columns ,table ,where)))
+
+(defun update (table sets where)
+  (io_lib:format (update-tmpl) `(,table ,sets ,where)))
+
+(defun upsert (table columns values conflict-column sets)
+  (io_lib:format (upsert-tmpl)
+                 `(,table ,columns ,values ,conflict-column ,sets)))
+
+(defun upsert-where (table columns values conflict-column sets where)
+  (io_lib:format (upsert-where-tmpl)
+                 `(,table ,columns ,values ,conflict-column ,sets ,where)))
+

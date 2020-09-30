@@ -8,6 +8,7 @@ email             - display the email address currently saved to this session
 email NEW-EMAIL   - set the email address for this account; note that this
                     will trigger an email confirmation to be sent to the
                     provided email
+exit              - alias for 'quit'
 help              - display this usage information
 id                - display the current session ID
 id NEW-ID         - alias for 'resume ID' 

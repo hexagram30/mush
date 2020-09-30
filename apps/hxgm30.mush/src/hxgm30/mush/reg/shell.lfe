@@ -3,7 +3,7 @@
    (banner 1)
    (command-dispatch 2)
    (prompt 0)
-   (send-confirmation-email 1)
+   (send-confirmation-code 1)
    (welcome 1)))
 
 (include-lib "logjam/include/logjam.hrl")
@@ -17,6 +17,7 @@
        ("banner" (resend-banner st))
        ("confirm" (confirm server st))
        ("email" (email server st))
+       ("exit" (quit server))
        ("help" (help st))
        ("id" (id server st))
        ("quit" (quit server))
@@ -103,8 +104,8 @@
 
 (defun ssh-key
   ((server (= (match-reg-state socket sock command parsed) st))
-   (case (check-arg parsed)
-     ('() (missing-arg st))
+   (case (check-key-args parsed)
+     (`#(err) (missing-arg st))
      (key (progn
             (log-debug "Got ssh-key: ~p" `(,key))
             (gen_server:cast server `#(ssh-key ,key))
@@ -116,6 +117,12 @@
      ('true (send sock "Confirmed."))
      (_ (send sock "Awaiting confirmation.")))))
 
+(defun check-key-args
+  ((`(,_ #(args ,args) ,_))
+   (case args
+     (`(,type ,key ,name) (io_lib:format "~s ~s ~s" `(,type ,key ,name)))
+     (_ #(err)))))
+
 (defun check-arg
   ((`(,_ #(args ,args) ,_))
    (case args
@@ -124,11 +131,11 @@
 
 (defun missing-arg
   (((match-reg-state socket sock))
-   (send sock #"ERROR: missing argument; see 'help' for usage info")))
+   (send sock (missing-arg-msg))))
 
 (defun unknown
   (((match-reg-state socket sock))
-   (send sock #"ERROR: unknown command")))
+   (send sock (unknown-msg))))
 
 ;;; -----------------
 ;;; support functions
@@ -149,6 +156,8 @@
 
 (defun newline () #"\r\n")
 (defun prompt ()  #"registration> ")
+(defun missing-arg-msg () #"ERROR: missing argument(s); see 'help' for usage info")
+(defun unknown-msg () #"ERROR: unknown command")
 
 (defun banner (id)
   (list (io_lib:format (hxgm30.util:read-priv-file
@@ -158,7 +167,7 @@
 (defun welcome (id)
   (list (banner id) (prompt)))
 
-(defun send-confirmation-email (to)
+(defun send-confirmation-code (to)
   (let ((msg (io_lib:format (hxgm30.util:read-priv-file
                              (hxgm30.mush.config:reg-email-tmpl))
                             `(,(hxgm30.util:confirmation-code to)))))
