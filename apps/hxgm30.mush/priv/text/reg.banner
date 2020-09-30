@@ -10,7 +10,7 @@
 ......................  USER ACCOUNT REGISTRATION  ...............
 ..................................................................
 
-WELCOME to the Hexagram30 MUSH user registration service!
+WELCOME to the Hexagram30 MUSH user REGISTRATION SERVICE!
 
 Note  that this  is for new  users only;  if you  have already
 registered your email address, added an SSH key, and confirmed
@@ -23,7 +23,7 @@ following at hand:
 1. An  active email address  (we will send  you a confirmation
    code at the address you give), and
 2. An  SSH  public  key (this  is how  you will  log into  the
-   service)
+   main service for playing games)
 
 To  see  a  list  of  available  commands,  type 'help' at the
 prompt.
@@ -32,6 +32,6 @@ Your session id is:
 
   ~s
 
-You  can  use this ID to continue an  in-progress registration
-with the 'resume' command.
+You  can use this ID at a later  point in time  to continue an
+in-progress registration with the 'resume' command.
 
