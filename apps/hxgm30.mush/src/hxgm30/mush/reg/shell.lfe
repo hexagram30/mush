@@ -6,11 +6,11 @@
    (send-confirmation-email 1)
    (welcome 1)))
 
-(include-lib "hxgm30.mush/include/registration.lfe")
 (include-lib "logjam/include/logjam.hrl")
+(include-lib "hxgm30.mush/include/registration.lfe")
 
 (defun command-dispatch
-  ((server (= (match-state command parsed session-id id) st))
+  ((server (= (match-reg-state command parsed session-id id) st))
    (let ((`(#(cmd ,cmd) ,_ ,_) parsed))
      (case cmd
        ("" (empty st))
@@ -31,71 +31,72 @@
 ;;; -----------------
 
 (defun confirm
-  ((server (match-state socket sock command parsed))
+  ((server (match-reg-state socket sock command parsed))
    (let ((`(,_ #(args (,conf-code . ,_)) ,_) parsed))
      (gen_server:cast server `#(confirm ,conf-code))
      (send sock "ok"))))
 
 (defun empty
-  (((match-state socket sock))
+  (((match-reg-state socket sock))
    (send sock)))
 
 (defun help
-  (((match-state socket sock))
+  (((match-reg-state socket sock))
    (send sock #"HELP TEXT")))
 
 (defun id
-  (((match-state socket sock session-id id))
+  (((match-reg-state socket sock session-id id))
    (send sock id)))
 
 (defun quit (server)
   (gen_server:cast server 'quit))
 
 (defun email
-  ((server (match-state socket sock command parsed))
+  ((server (match-reg-state socket sock command parsed))
    (let ((`(,_ #(args (,email . ,_)) ,_) parsed))
      (gen_server:cast server `#(register ,email))
      (send sock
            (io_lib:format "Check your email for a confirmation code." '())))))
 
 (defun resend-banner
-  (((match-state socket sock session-id id))
+  (((match-reg-state socket sock session-id id))
    (send sock (banner id) 0)))
 
 (defun resume
-  ((server (match-state socket sock command parsed))
+  ((server (match-reg-state socket sock command parsed))
    (let ((`(,_ #(args (,id . ,_)) ,_) parsed))
      (gen_server:cast server `#(session-id ,id))
      (send sock (io_lib:format "Your current session ID is now ~s" `(,id))))))
 
 (defun show-all
-  (((= (match-state socket sock session-id id) st))
-   (let* ((tmpl (++ "Data for id=~s:~n"
+  (((= (match-reg-state socket sock session-id id) st))
+   (let* ((tmpl (++ "~nData for id = ~s:~n"
                     "* Email address: ~s~n"
                     "* Confirmed status: ~s~n"
                     "* SSH key: ~s~n"))
-          (msg (io_lib:format tmpl `(,(state-session-id st)
-                                     ,(state-email st)
-                                     ,(state-confirmed? st)
-                                     ,(state-ssh-key st)))))
+          (msg (io_lib:format tmpl `(,(reg-state-session-id st)
+                                     ,(reg-state-email st)
+                                     ,(reg-state-confirmed st)
+                                     ,(reg-state-ssh-key st)))))
      (send sock msg))))
 
 (defun ssh-key
-  ((server (match-state socket sock command parsed))
+  ((server (match-reg-state socket sock command parsed))
+   (log-debug "Got parsed: ~p" `(,parsed))
    (let ((`(,_ #(args (,key . ,_)) ,_) parsed))
+     (log-debug "Got ssh-key: ~p" `(,key))
      (gen_server:cast server `#(ssh-key ,key))
      (send sock "ok"))))
 
 (defun status
-  (((match-state socket sock confirmed confd))
+  (((match-reg-state socket sock confirmed confd))
    (case confd
      ('true (send sock "Confirmed."))
-     ('false (send sock "Awaiting confirmation.")))))
+     (_ (send sock "Awaiting confirmation.")))))
 
 (defun unknown
-  (((match-state socket sock))
+  (((match-reg-state socket sock))
    (send sock #"UNKNOWN COMMAND")))
-
 
 ;;; -----------------
 ;;; support functions

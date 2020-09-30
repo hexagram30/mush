@@ -22,8 +22,8 @@
   (export
    (stop 0)))
 
-(include-lib "hxgm30.mush/include/registration.lfe")
 (include-lib "logjam/include/logjam.hrl")
+(include-lib "hxgm30.mush/include/registration.lfe")
 
 ;;; -------------------------
 ;;; gen_server implementation
@@ -41,7 +41,7 @@
 
 (defun init (sock)
   (gen_server:cast (self) 'accept)
-  `#(ok ,(make-state socket sock
+  `#(ok ,(make-reg-state socket sock
                      session-id (hxgm30.util:uuid4 #m(return string)))))
 
 (defun handle_info
@@ -59,7 +59,7 @@
    (let ((parsed (hxgm30.mush.shell:tokenize (string:trim data))))
      (log-debug "Parsed input: ~p" `(,parsed))
      (gen_server:cast (self) 'dispatch)
-     `#(noreply ,(set-state-command st parsed))))
+     `#(noreply ,(set-reg-state-command st parsed))))
   ((`#(tcp_closed ,sock) st)
    (log-debug "Handling TCP closed info message ...")
    `#(stop normal ,st))
@@ -71,7 +71,7 @@
    `#(noreply ,st)))
 
 (defun handle_cast
-  (('accept (= (match-state socket listen-sock session-id id) st))
+  (('accept (= (match-reg-state socket listen-sock session-id id) st))
    (log-debug "Matched accept message.")
    (log-debug "Got listen socket: ~p" `(,listen-sock))
    (log-debug "Got state: ~p" `(,st))
@@ -83,10 +83,10 @@
      (hxgm30.util:tcp-send accept-sock
                            (hxgm30.mush.reg.shell:welcome id))
      (log-debug "Setting new socket in server state ...")
-     `#(noreply ,(set-state-socket st accept-sock))))
+     `#(noreply ,(set-reg-state-socket st accept-sock))))
   (('dispatch st)
    (hxgm30.mush.reg.shell:command-dispatch (self) st)
-   `#(noreply ,(set-state-command st '())))
+   `#(noreply ,(set-reg-state-command st '())))
   ((`#(confirm ,conf-code) st)
    ;; XXX Make call to postgres to get saved conf code for session id
    ;; XXX Compare to passed conf code
@@ -94,15 +94,15 @@
    `#(noreply ,st))
   ((`#(register ,email) st)
    ;; XXX Make call to postgres to set email and session id
-   `#(noreply ,(set-state-email st email)))
+   `#(noreply ,(set-reg-state-email st email)))
   ((`#(session-id ,id) st)
    ;; XXX Make call to postgres to get all data WHERE session_id = id
    ;; XXX Update state data with DB results
-   `#(noreply ,(set-state-session-id st id)))
+   `#(noreply ,(set-reg-state-session-id st id)))
   ((`#(ssh-key ,key) st)
    ;; XXX Make call to postgres to set SSH key
-   `#(noreply ,(set-state-email st key)))
-  (('quit (= (match-state socket sock) st))
+   `#(noreply ,(set-reg-state-email st key)))
+  (('quit (= (match-reg-state socket sock) st))
    (gen_tcp:close sock)
    `#(stop normal ,st))
   ((msg st)

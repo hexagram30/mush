@@ -1,4 +1,4 @@
-(defrecord state
+(defrecord reg-state
   socket
   command
   session-id
