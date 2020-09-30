@@ -1,10 +1,3 @@
-;;;; Notes on implementing TCP servers:
-;;;; * https://github.com/ogolosovskiy/non_blocking_tcp_server
-;;;; * http://20bits.com/article/erlang-a-generalized-tcp-server
-;;;; * https://learnyousomeerlang.com/buckets-of-sockets
-;;;;
-;;;; Work being tracked here:
-;;;; * https://github.com/hexagram30/mush/issues/3
 (defmodule hxgm30.mush.reg.server
   (behaviour gen_server)
   ;; gen_server implementation
@@ -88,11 +81,13 @@
    (hxgm30.mush.reg.shell:command-dispatch (self) st)
    `#(noreply ,(set-reg-state-command st '())))
   ((`#(confirm ,conf-code) st)
+   (log-debug "Got confirmation code ~p" `(,conf-code))
    ;; XXX Make call to postgres to get saved conf code for session id
    ;; XXX Compare to passed conf code
    ;; XXX Make call to postgres to set confirmed to TRUE is equal
    `#(noreply ,st))
   ((`#(register ,email) st)
+   (log-debug "Got registration email ~p" `(,email))
    ;; XXX Make call to postgres to set email and session id
    `#(noreply ,(set-reg-state-email st email)))
   ((`#(session-id ,id) st)
@@ -101,7 +96,7 @@
    `#(noreply ,(set-reg-state-session-id st id)))
   ((`#(ssh-key ,key) st)
    ;; XXX Make call to postgres to set SSH key
-   `#(noreply ,(set-reg-state-email st key)))
+   `#(noreply ,(set-reg-state-ssh-key st key)))
   (('quit (= (match-reg-state socket sock) st))
    (gen_tcp:close sock)
    `#(stop normal ,st))

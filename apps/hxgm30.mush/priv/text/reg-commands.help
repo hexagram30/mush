@@ -11,14 +11,13 @@ email NEW-EMAIL   - set the email address for this account; note that this
                     provided email
 help              - display this usage information
 id                - display the current session ID
-id NEW-ID         - change the session ID; required to resume a previous
-                    session (e.g., if you are disconnected before you have
-                    confirmed your account)
+id NEW-ID         - alias for 'resume ID' 
 quit              - disconnect from the registration server
 resend            - resend email with confirmation code to the stored email
                     address
 resume ID         - resume a previous session that was saved with the given
-                    id
+                    id (e.g., if you are disconnected before you have
+                    confirmed your account)
 show-all          - display all current session data
 ssh-key           - display public SSH key currently saved to this session
 ssk-key NEW-KEY   - set the public SSH key for this account

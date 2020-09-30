@@ -18,7 +18,7 @@
        ("confirm" (confirm server st))
        ("email" (email server st))
        ("help" (help st))
-       ("id" (id st))
+       ("id" (id server st))
        ("quit" (quit server))
        ("resend" (resend-code server st))
        ("resume" (resume server st))
@@ -32,16 +32,23 @@
 ;;; -----------------
 
 (defun confirm
-  ((server (match-reg-state socket sock command parsed))
-   (let ((`(,_ #(args (,conf-code . ,_)) ,_) parsed))
-     (gen_server:cast server `#(confirm ,conf-code))
-     (send sock "ok"))))
+  ((server (= (match-reg-state socket sock command parsed) st))
+   (case (check-arg parsed)
+     ('() (missing-arg st))
+     (conf-code (progn
+                  (gen_server:cast server `#(confirm ,conf-code))
+                  (send sock (++ "Checking; to view confirmation "
+                                 "status, use the 'status' or "
+                                 "'show-all' command.")))))))
 
 (defun email
-  ((server (match-reg-state socket sock command parsed))
-   (let ((`(,_ #(args (,email . ,_)) ,_) parsed))
-     (gen_server:cast server `#(register ,email))
-     (send sock "Check your email for a confirmation code."))))
+  ((server (= (match-reg-state socket sock command parsed) st))
+   (case (check-arg parsed)
+     ('() (missing-arg st))
+     (email (progn
+              (gen_server:cast server `#(register ,email))
+              (send sock (++ "Check your email for a confirmation "
+                             "code.")))))))
 
 (defun empty
   (((match-reg-state socket sock))
@@ -53,12 +60,15 @@
                 (hxgm30.mush.config:reg-help-text)))))
 
 (defun id
-  (((match-reg-state socket sock session-id id))
-   (send sock id)))
+  ((server (= (match-reg-state socket sock
+                               command parsed
+                               session-id id) st))
+   (case (check-arg parsed)
+     ('() (send sock id))
+     (_ (resume server st)))))
 
 (defun quit (server)
   (gen_server:cast server 'quit))
-
 
 (defun resend-banner
   (((match-reg-state socket sock session-id id))
@@ -70,10 +80,14 @@
      (send sock "Check your email for a confirmation code.")))
 
 (defun resume
-  ((server (match-reg-state socket sock command parsed))
-   (let ((`(,_ #(args (,id . ,_)) ,_) parsed))
-     (gen_server:cast server `#(session-id ,id))
-     (send sock (io_lib:format "Your current session ID is now ~s" `(,id))))))
+  ((server (= (match-reg-state socket sock command parsed) st))
+   (case (check-arg parsed)
+     ('() (missing-arg st))
+     (id (progn
+            (gen_server:cast server `#(session-id ,id))
+            (send sock
+                  (io_lib:format "Your current session ID is now ~s"
+                                 `(,id))))))))
 
 (defun show-all
   (((= (match-reg-state socket sock session-id id) st))
@@ -88,18 +102,29 @@
      (send sock msg))))
 
 (defun ssh-key
-  ((server (match-reg-state socket sock command parsed))
-   (log-debug "Got parsed: ~p" `(,parsed))
-   (let ((`(,_ #(args (,key . ,_)) ,_) parsed))
-     (log-debug "Got ssh-key: ~p" `(,key))
-     (gen_server:cast server `#(ssh-key ,key))
-     (send sock "ok"))))
+  ((server (= (match-reg-state socket sock command parsed) st))
+   (case (check-arg parsed)
+     ('() (missing-arg st))
+     (key (progn
+            (log-debug "Got ssh-key: ~p" `(,key))
+            (gen_server:cast server `#(ssh-key ,key))
+            (send sock "ok"))))))
 
 (defun status
   (((match-reg-state socket sock confirmed confd))
    (case confd
      ('true (send sock "Confirmed."))
      (_ (send sock "Awaiting confirmation.")))))
+
+(defun check-arg
+  ((`(,_ #(args ,args) ,_))
+   (case args
+     ('() args)
+     (`(,head . ,_tail) head))))
+
+(defun missing-arg
+  (((match-reg-state socket sock))
+   (send sock #"ERROR: missing argument; see 'help' for usage info")))
 
 (defun unknown
   (((match-reg-state socket sock))
@@ -145,4 +170,3 @@
        (log-info "Successfully sent registration email to ~s" `(,to)))
       (`#(,exit-code ,err)
        (log-error "Could not send registration email: ~p" `(,err))))))
-
