@@ -3,6 +3,7 @@
    (confirmation-code 1)
    (read-priv-file 1)
    (tcp-send 2)
+   (uuid? 1)
    (uuid3 1) (uuid3 2)
    (uuid4 0) (uuid4 1)
    (uuid->ascii-quad 1)))
@@ -12,6 +13,7 @@
 (defun ascii-a () 65)
 (defun alphabet-len () 25)
 (defun app () 'hxgm30.mush)
+;;(defun invalid-uuid () #"ERROR: invalid UUID")
 
 (defun uuid3 (data)
   (uuid3 data #m()))
@@ -33,6 +35,23 @@
   ((_)
    (uuid:get_v4)))
 
+(defun uuid?
+  ((id) (when (is_bitstring id))
+   (uuid? (erlang:bitstring_to_list id)))
+  ((id) (when (is_binary id))
+   (try
+     (uuid:is_uuid id)
+     (catch (`#(,_ ,_ ,_)
+       'false))))
+  ((id) (when (is_list id))
+   (try
+     (uuid:is_uuid (uuid:string_to_uuid id))
+     (catch (`#(,_ ,_ ,_)
+       'false))))
+  ((_)
+   'false))
+       
+  
 (defun confirmation-code
   ((data) (when (is_list data))
    (confirmation-code (list_to_binary data)))

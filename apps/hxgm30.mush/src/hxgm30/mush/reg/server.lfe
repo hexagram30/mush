@@ -64,44 +64,60 @@
    `#(noreply ,st)))
 
 (defun handle_cast
+  ;; Start a new session
   (('accept (= (match-reg-state socket listen-sock session-id id) st))
-   (log-debug "Matched accept message.")
-   (log-debug "Got listen socket: ~p" `(,listen-sock))
-   (log-debug "Got state: ~p" `(,st))
    (log-debug "Waiting for connection ...")
    (let ((`#(ok ,accept-sock) (gen_tcp:accept listen-sock)))
      (log-debug "Got connection on accept socket: ~p" `(,accept-sock))
      (hxgm30.mush.reg.sup:start-socket)
-     (log-debug "Sending banner and prompt ...")
      (hxgm30.util:tcp-send accept-sock
                            (hxgm30.mush.reg.shell:welcome id))
      (log-debug "Setting new socket in server state ...")
      `#(noreply ,(set-reg-state-socket st accept-sock))))
+  ;; Process a user command
   (('dispatch st)
    (hxgm30.mush.reg.shell:command-dispatch (self) st)
    `#(noreply ,(set-reg-state-command st '())))
-  ((`#(confirm ,conf-code) st)
+  ;; Process a user's confirmation code submission
+  ((`#(confirm ,conf-code) (= (match-reg-state session-id id) st))
    (log-debug "Got confirmation code ~p" `(,conf-code))
-   ;; XXX Make call to postgres to get saved conf code for session id
-   ;; XXX Compare to passed conf code
-   ;; XXX Make call to postgres to set confirmed to TRUE is equal
-   `#(noreply ,st))
+   (let* ((stored-conf-code (hxgm30.store.query:user-conf-code id))
+          (match? (=/= conf-code stored-conf-code)))
+     (if match?
+       (hxgm30.store.query:set-user-confirmed id))
+     `#(noreply ,(update-status st))))
+  ;; Register a user's email address
   ((`#(register ,email) (= (match-reg-state session-id id) st))
    (log-debug "Got registration email ~p" `(,email))
+   ;; XXX do basic regex check on email!
    (hxgm30.store.query:set-user-email id email)
-   (hxgm30.mush.reg.shell:send-confirmation-code email)
-   `#(noreply ,(set-reg-state-email st email)))
+   (let* ((code (hxgm30.util:confirmation-code email))
+          (new-st (set-reg-state-email st email))
+          ;; XXX check new update-status function
+          (status (update-status new-st)))
+     ;; XXX check new set-user-conf-code function
+     (hxgm30.store.query:set-user-conf-code id code)
+     (hxgm30.mush.reg.shell:send-confirmation-code email code)
+     `#(noreply ,(set-reg-state-status new-st status))))
+  ;; Swith the user's session ID to a previous one
   ((`#(session-id ,id) st)
-   `#(noreply ,(set-reg-state-session-id st id)))
+   (let ((user-data (hxgm30.store.query:user id)))
+   ;; XXX if not found, just replace id
+   ;; XXX if found, create new state object with all new data
+   `#(noreply ,(set-reg-state-session-id st id))))
+  ;; Register a user's SSH key
   ((`#(ssh-key ,key) (= (match-reg-state session-id id) st))
-   (let ((result (hxgm30.store.query:set-user-ssh-key id key)))
-     (log-debug "Result: ~p" `(,result)))
-   `#(noreply ,(set-reg-state-ssh-key st key)))
+   (let* ((result (hxgm30.store.query:set-user-ssh-key id key))
+          (new-st (set-reg-state-ssh-key st key))
+          ;; XXX check new update-status function
+          (status (update-status new-st)))
+     `#(noreply ,(set-reg-state-status new-st status))))
+  ;; Disconnect from the registration service
   (('quit (= (match-reg-state socket sock) st))
    (gen_tcp:close sock)
    `#(stop normal ,st))
   ((msg st)
-   (log-debug "Got cast msg: ~p" `(,msg))
+   (log-debug "Got unexpected cast msg: ~p" `(,msg))
    `#(noreply ,st)))
 
 (defun handle_call
@@ -130,3 +146,25 @@
 
 (defun genserver-opts () '())
 (defun unknown-command () #(error "Unknown command."))
+
+(defun update-status
+  "Note that the source of truth for valid return values are defined in the
+  PostgreSQL 'reg_state' ENUM defined in our DB schema. Currently these are
+  * initiated - just an email has been provided
+  * incomplete - email + one of the other required fields, but not all
+  * complete - all required service_user data have been saved"
+  (((= (match-reg-state email em ssh-key key status stts session-id id) st))
+   (let* ((confirmed? (hxgm30.store.query:user-confirmed? id))
+          (email? (if (== em 'undefined 'false) 'true))
+          (ssh-key? (if (== key 'undefined 'false) 'true))
+          (new-stts (cond
+                     ((and confirmed? email? ssh-key?) "complete")
+                     ((and (or (and confirmed? email?)
+                               (and confirmed? ssh-key?)
+                               (and email? ssh-key?))) "incomplete")
+                     (email? "initiated")
+                     ('true 'undefined)))
+          (changed? (=/= new-stts stts)))
+     (if (and changed? (=/= new-stts 'undefined))
+       (hxgm30.store.query:set-user-reg-status id new-stts))
+     (set-reg-state-status st new-stts))))

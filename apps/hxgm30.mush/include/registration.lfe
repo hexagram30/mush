@@ -4,4 +4,4 @@
   session-id
   email
   ssh-key
-  confirmed)
+  status)

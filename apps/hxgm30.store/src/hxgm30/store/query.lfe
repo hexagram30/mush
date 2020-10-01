@@ -49,20 +49,31 @@
     (clj:-> (select-from-where (user-columns) (user-table) where)
             (query-one))))
 
+(defun user-conf-code (id)
+  (mref (user id) #"confirmation_code"))
+
+(defun user-confirmed? (id)
+  (mref (user id) #"confirmed"))
+
 (defun set-user-email (id email)
-  (let ((columns "registration_id, email")
-        (values (io_lib:format "'~s', '~s'" `(,id ,email)))
-        (set (io_lib:format "email = '~s'" `(,email)))
-        (where (io_lib:format "registration_id='~s'" `(,id))))
-    (clj:-> (upsert (user-table) columns values "registration_id" set)
-            (trace-query)
-            (transact))))
+  (set-user-value id "email" email))
 
 (defun set-user-ssh-key (id key)
-  (let ((columns "registration_id, ssh_public_key")
-        (values (io_lib:format "'~s', '~s'" `(,id ,key)))
-        (set (io_lib:format "ssh_public_key = '~s'" `(,key)))
-        (where (io_lib:format "registration_id='~s'" `(,id))))
+  (set-user-value id "ssh_public_key" key))
+
+(defun set-user-conf-code (id conf-code)
+  (set-user-value id "confirmation_code" conf-code))
+
+(defun set-user-reg-status (id status)
+  (set-user-value id "registration_status" status))
+
+(defun set-user-confirmed (id)
+  (set-user-value id "confirmed" 'true))
+
+(defun set-user-value (id column value)
+  (let ((columns (io_lib:format "registration_id, ~s" `(,column)))
+        (values (io_lib:format "'~s', '~s'" `(,id ,value)))
+        (set (io_lib:format "~s = '~s'" `(,column ,value))))
     (clj:-> (upsert (user-table) columns values "registration_id" set)
             (trace-query)
             (transact))))
