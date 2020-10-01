@@ -65,53 +65,24 @@
 
 (defun handle_cast
   ;; Start a new session
-  (('accept (= (match-reg-state socket listen-sock session-id id) st))
-   (log-debug "Waiting for connection ...")
-   (let ((`#(ok ,accept-sock) (gen_tcp:accept listen-sock)))
-     (log-debug "Got connection on accept socket: ~p" `(,accept-sock))
-     (hxgm30.mush.reg.sup:start-socket)
-     (hxgm30.util:tcp-send accept-sock
-                           (hxgm30.mush.reg.shell:welcome id))
-     (log-debug "Setting new socket in server state ...")
-     `#(noreply ,(set-reg-state-socket st accept-sock))))
+  (('accept st)
+   `#(noreply ,(accept-connection st)))
   ;; Process a user command
   (('dispatch st)
    (hxgm30.mush.reg.shell:command-dispatch (self) st)
    `#(noreply ,(set-reg-state-command st '())))
   ;; Process a user's confirmation code submission
-  ((`#(confirm ,conf-code) (= (match-reg-state session-id id) st))
-   (log-debug "Got confirmation code ~p" `(,conf-code))
-   (let* ((stored-conf-code (hxgm30.store.query:user-conf-code id))
-          (match? (=/= conf-code stored-conf-code)))
-     (if match?
-       (hxgm30.store.query:set-user-confirmed id))
-     `#(noreply ,(update-status st))))
+  ((`#(confirm ,conf-code) st)
+   `#(noreply ,(verify-email st conf-code)))
   ;; Register a user's email address
-  ((`#(register ,email) (= (match-reg-state session-id id) st))
-   (log-debug "Got registration email ~p" `(,email))
-   ;; XXX do basic regex check on email!
-   (hxgm30.store.query:set-user-email id email)
-   (let* ((code (hxgm30.util:confirmation-code email))
-          (new-st (set-reg-state-email st email))
-          ;; XXX check new update-status function
-          (status (update-status new-st)))
-     ;; XXX check new set-user-conf-code function
-     (hxgm30.store.query:set-user-conf-code id code)
-     (hxgm30.mush.reg.shell:send-confirmation-code email code)
-     `#(noreply ,(set-reg-state-status new-st status))))
+  ((`#(register ,email) st)
+     `#(noreply ,(register-email st email)))
   ;; Swith the user's session ID to a previous one
   ((`#(session-id ,id) st)
-   (let ((user-data (hxgm30.store.query:user id)))
-   ;; XXX if not found, just replace id
-   ;; XXX if found, create new state object with all new data
-   `#(noreply ,(set-reg-state-session-id st id))))
+   `#(noreply ,(switch-session st id)))
   ;; Register a user's SSH key
-  ((`#(ssh-key ,key) (= (match-reg-state session-id id) st))
-   (let* ((result (hxgm30.store.query:set-user-ssh-key id key))
-          (new-st (set-reg-state-ssh-key st key))
-          ;; XXX check new update-status function
-          (status (update-status new-st)))
-     `#(noreply ,(set-reg-state-status new-st status))))
+  ((`#(ssh-key ,key) st)
+   `#(noreply ,(register-ssh-key st key)))
   ;; Disconnect from the registration service
   (('quit (= (match-reg-state socket sock) st))
    (gen_tcp:close sock)
@@ -139,6 +110,59 @@
 
 (defun stop ()
   'ok)
+
+;;; --------------------------------
+;;; private handler helper functions
+;;; --------------------------------
+
+(defun accept-connection
+  (((= (match-reg-state socket listen-sock session-id id) st))
+   (log-debug "Waiting for connection ...")
+   (let ((`#(ok ,accept-sock) (gen_tcp:accept listen-sock)))
+     (log-debug "Got connection on accept socket: ~p" `(,accept-sock))
+     (hxgm30.mush.reg.sup:start-socket)
+     (hxgm30.util:tcp-send accept-sock
+                           (hxgm30.mush.reg.shell:welcome id))
+     (log-debug "Setting new socket in server state ...")
+     (hxgm30.store.query:create-user id)
+     (set-reg-state-socket st accept-sock))))
+
+(defun register-email
+  (((= (match-reg-state session-id id) st) email)
+   (log-debug "Got registration email ~p" `(,email))
+   ;; XXX do basic regex check on email!
+   (hxgm30.store.query:set-user-email id email)
+   (let* ((code (hxgm30.util:confirmation-code email))
+          (new-st (set-reg-state-email st email))
+          ;; XXX check new update-status function
+          (status (update-status new-st)))
+     ;; XXX check new set-user-conf-code function
+     (hxgm30.store.query:set-user-conf-code id code)
+     (hxgm30.mush.reg.shell:send-confirmation-code email code)
+     (set-reg-state-status new-st status))))
+
+(defun register-ssh-key
+  (((= (match-reg-state session-id id) st) key)
+   (let* ((result (hxgm30.store.query:set-user-ssh-key id key))
+          (new-st (set-reg-state-ssh-key st key))
+          ;; XXX check new update-status function
+          (status (update-status new-st)))
+     (set-reg-state-status new-st status))))
+
+(defun switch-session (st id)
+  (let ((user-data (hxgm30.store.query:user id)))
+    ;; XXX if not found, just replace id
+    ;; XXX if found, create new state object with all new data
+    (set-reg-state-session-id st id)))
+
+(defun verify-email
+  (((= (match-reg-state session-id id) st) conf-code)
+   (log-debug "Got confirmation code ~p" `(,conf-code))
+   (let* ((stored-conf-code (hxgm30.store.query:user-conf-code id))
+          (match? (=/= conf-code stored-conf-code)))
+     (if match?
+       (hxgm30.store.query:set-user-confirmed id))
+     (update-status st))))
 
 ;;; -----------------
 ;;; private functions

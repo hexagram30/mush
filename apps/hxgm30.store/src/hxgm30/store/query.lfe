@@ -3,7 +3,7 @@
 
 (include-lib "logjam/include/logjam.hrl")
 
-(defun insert-tmpl () "INSERT INTO ~s (~s) VALUES (~p)")
+(defun insert-tmpl () "INSERT INTO ~s (~s) VALUES (~s)")
 (defun select-from-tmpl () "SELECT ~s FROM ~s")
 (defun select-from-where-tmpl () "SELECT ~s FROM ~s WHERE ~s")
 (defun update-tmpl () "UPDATE ~s SET ~s WHERE ~s")
@@ -30,7 +30,8 @@
 (defun pathway-add-columns ()
   "display_name,created_on,description,from_area_id,to_area_id,direction")
 (defun user-columns ()
-  "id,email,ssh_public_key,created_on,updated_on")
+  (++ "id,email,ssh_public_key,created_on,updated_on,"
+      "confirmation_code,confirmed,registration_id,registration_status"))
 
 (defun query-args () '())
 (defun query-opts ()
@@ -45,15 +46,25 @@
           (query-all)))
 
 (defun user (id)
-  (let ((where (io_lib:format "id=~p" `(,id))))
+  (let ((where (io_lib:format "registration_id='~s'" `(,id))))
     (clj:-> (select-from-where (user-columns) (user-table) where)
+            (query-one))))
+
+(defun create-user (id)
+  (let ((columns "registration_id, created_on")
+        (values (io_lib:format "'~s', current_timestamp" `(,id))))
+    (clj:-> (insert (user-table) columns values)
+            (trace-query)
             (query-one))))
 
 (defun user-conf-code (id)
   (mref (user id) #"confirmation_code"))
 
 (defun user-confirmed? (id)
-  (mref (user id) #"confirmed"))
+  (let ((result (mref (user id) #"confirmed")))
+    (case result
+      ('true result)
+      (_ 'false))))
 
 (defun set-user-email (id email)
   (set-user-value id "email" email))
@@ -71,12 +82,12 @@
   (set-user-value id "confirmed" 'true))
 
 (defun set-user-value (id column value)
-  (let ((columns (io_lib:format "registration_id, ~s" `(,column)))
-        (values (io_lib:format "'~s', '~s'" `(,id ,value)))
+  (let ((columns (io_lib:format "registration_id, updated_on, ~s" `(,column)))
+        (values (io_lib:format "'~s', current_timestamp, '~s'" `(,id ,value)))
         (set (io_lib:format "~s = '~s'" `(,column ,value))))
     (clj:-> (upsert (user-table) columns values "registration_id" set)
             (trace-query)
-            (transact))))
+            (query-one))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;   Games Functions   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -230,17 +241,27 @@
   data)
 
 (defun query-all (sql)
-  (clj:-> sql
-          (pgo:query (query-args) (query-opts))
-          (mref 'rows)))
+  (try
+    (clj:-> sql
+            (pgo:query (query-args) (query-opts))
+            (mref 'rows))
+    (catch (`#(,_ ,value ,_)
+      `#(error ,(extract-pg-error value))))))
+
+(defun query-one (sql)
+  (case (query-all sql)
+    ('() '())
+    (`#(error ,msg) `#(error ,msg))
+    (result (car result))))
+
 
 (defun transact (sql)
   (pgo:transaction
    (lambda ()
      (pgo:query sql (query-args) (query-opts)))))
 
-(defun query-one (sql)
-  (car (query-all sql)))
+(defun insert (table columns values)
+  (io_lib:format (insert-tmpl) `(,table ,columns ,values)))
 
 (defun select-from (columns table)
   (io_lib:format (select-from-tmpl) `(,columns ,table)))
@@ -259,3 +280,8 @@
   (io_lib:format (upsert-where-tmpl)
                  `(,table ,columns ,values ,conflict-column ,sets ,where)))
 
+(defun extract-pg-error
+  ((`#(,key ,value)) (when (== key 'pgsql_error))
+   (mref value 'detail))
+  ((`#(,key ,value))
+   (extract-pg-error value)))

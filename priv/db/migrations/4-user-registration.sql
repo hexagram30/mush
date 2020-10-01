@@ -10,12 +10,16 @@ ALTER TABLE service_user ADD COLUMN registration_id UUID UNIQUE;
 ALTER TABLE service_user ADD COLUMN confirmation_code VARCHAR(9);
 ALTER TABLE service_user ADD COLUMN registration_status reg_state;
 
+UPDATE service_user SET registration_status = 'complete'
+       WHERE email = 'root@hxgm30.mush';
+UPDATE service_user SET confirmed = TRUE WHERE email = 'root@hxgm30.mush';
+
 CREATE FUNCTION expire_nonconfirmed_users() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
   DELETE FROM service_user
-  WHERE updated_on < NOW() - INTERVAL '24 hours'
+  WHERE created_on < NOW() - INTERVAL '24 hours'
   AND registration_status != 'complete';
   RETURN NEW;
 END;
