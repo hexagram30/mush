@@ -69,20 +69,20 @@ $ rebar3 lfe test
 
 ## Usage [&#x219F;](#table-of-contents)
 
-At a high level, actual usage of the system as a MUSH server offering various games is this:
+At a high level, actual usage of the system as a MUSH server offering various games is this (checkboxes indicate development progress):
 
-1. Telnet to the registration server
-   1. view help, issue commands, etc., but ultimately:
-   1. provide your email address and a public SSH key
-   1. receive a confirmation email
-   1. provide the confirmation code in the telnet session
-   1. log out
-1. SSH to the game server
-   1. user id is the registered email address; access is by SSH key only
-   1. view help, issue commands, etc., but ultimately:
-   1. create a character
-   1. select a game to join using a specificed character
-   1. MUSH it up
+1. [ ] Telnet to the registration server
+   1. [x] view help, issue commands, etc., but ultimately:
+   1. [x] provide your email address and a public SSH key
+   1. [x] receive a confirmation email
+   1. [ ] provide the confirmation code in the telnet session
+   1. [x] log out
+1. [ ] SSH to the game server
+   1. [ ] user id is the registered email address; access is by SSH key only
+   1. [ ] view help, issue commands, etc., but ultimately:
+   1. [ ] create a character
+   1. [ ] select a game to join using a specificed character
+   1. [ ] MUSH it up!
 
 PLayers with the `builder` role are able to add new areas to the game, create and place items, update existing areas, etc. All players may build one home in an available location (for areas that are approved for homes where there are available slots).
 
