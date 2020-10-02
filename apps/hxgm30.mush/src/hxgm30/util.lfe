@@ -1,6 +1,7 @@
 (defmodule hxgm30.util
   (export
    (confirmation-code 1)
+   (email? 1)
    (read-priv-file 1)
    (tcp-send 2)
    (uuid? 1)
@@ -88,3 +89,27 @@
       (err (progn
              (log-warn "Problem reading file: ~p" `(,filename))
              (log-error "~p" `(,err)))))))
+
+(defun email? (text)
+  "Taken from:
+  * https://github.com/zotonic/z_stdlib/blob/master/src/z_email_utils.erl"
+  (case (re:run text (email-regex) '(extended))
+    ('nomatch 'false)
+    (`#(match ,_) 'true)))
+
+(defun email-regex ()
+  "Taken from:
+  * https://github.com/zotonic/z_stdlib/blob/master/src/z_email_utils.erl"
+  "^(
+            (\"[^\"\\f\\n\\r\\t\\v\\b]+\")
+        |   ([\\w\\!\\#\\$\\%\\&\\'\\*\\+\\-\\~\\/\\^\\`\\|\\{\\}]+
+                (\\.[\\w\\!\\#\\$\\%\\&\\'\\*\\+\\-\\~\\/\\^\\`\\|\\{\\}]+)*
+            )
+    )
+    @
+    (
+        (
+            ([A-Za-z0-9\\-])+\\.
+        )+
+        [A-Za-z\\-]{2,}
+    )$")
