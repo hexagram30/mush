@@ -1,7 +1,8 @@
 (defrecord reg-state
   socket
   command
-  error
+  (errors '())
+  (messages '())
   session-id
   email
   ssh-key
