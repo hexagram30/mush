@@ -70,13 +70,13 @@
   ;; Process a user command
   (('dispatch st)
    (hxgm30.mush.reg.shell:command-dispatch (self) st)
-   `#(noreply ,(set-reg-state-command st '())))
+   `#(noreply ,(post-dispatch-cleanup st)))
   ;; Process a user's confirmation code submission
   ((`#(confirm ,conf-code) st)
    `#(noreply ,(verify-email st conf-code)))
   ;; Register a user's email address
   ((`#(register ,email) st)
-     `#(noreply ,(register-email st email)))
+   `#(noreply ,(register-email st email)))
   ;; Swith the user's session ID to a previous one
   ((`#(session-id ,id) st)
    `#(noreply ,(switch-session st id)))
@@ -128,24 +128,41 @@
      (set-reg-state-socket st accept-sock))))
 
 (defun register-email
+  "Entry point for the email registration workflow.
+
+  This is used for performing checks before the actual registration occurs
+  (prevents overly-nested code and easier testing)."
   (((= (match-reg-state session-id id) st) email)
    (log-debug "Got registration email ~p" `(,email))
-   ;; XXX do basic regex check on email!
-   (hxgm30.store.query:set-user-email id email)
-   (let* ((code (hxgm30.util:confirmation-code email))
-          (new-st (set-reg-state-email st email))
-          ;; XXX check new update-status function
-          (status (update-status new-st)))
-     ;; XXX check new set-user-conf-code function
-     (hxgm30.store.query:set-user-conf-code id code)
-     (hxgm30.mush.reg.shell:send-confirmation-code email code)
-     (set-reg-state-status new-st status))))
+   (case (hxgm30.store.query:set-user-email id email)
+     (`#(error ,msg)
+      (log-error msg)
+      (append-errors st (list #"ERROR: " msg)))
+     ('()
+      (register-email st id email)
+      (let ((new-st (append-messages
+                     st "Check your email for a confirmation code.")))
+        (set-reg-state-email new-st email)))
+     (result      
+      (log-warning "Unexpected result: ~p" `(,result))
+      st))))
+
+(defun register-email (st id email)
+  "The bit that does the actual work of registering emails."
+  (let* ((code (hxgm30.util:confirmation-code email))
+         (new-st (set-reg-state-email st email))
+         ;; XXX check new update-status function -- is this working?
+         (status (update-status new-st)))
+    ;; XXX check new set-user-conf-code function
+    (hxgm30.store.query:set-user-conf-code id code)
+    (hxgm30.mush.reg.shell:send-confirmation-code email code)
+    (set-reg-state-status new-st status)))
 
 (defun register-ssh-key
   (((= (match-reg-state session-id id) st) key)
    (let* ((result (hxgm30.store.query:set-user-ssh-key id key))
           (new-st (set-reg-state-ssh-key st key))
-          ;; XXX check new update-status function
+          ;; XXX check new update-status function -- is this working?
           (status (update-status new-st)))
      (set-reg-state-status new-st status))))
 
@@ -160,16 +177,37 @@
    (log-debug "Got confirmation code ~p" `(,conf-code))
    (let* ((stored-conf-code (hxgm30.store.query:user-conf-code id))
           (match? (=/= conf-code stored-conf-code)))
-     (if match?
-       (hxgm30.store.query:set-user-confirmed id))
-     (update-status st))))
+     (cond
+      ((not match?)
+       (update-status (set-reg-state-errors st (non-matching-conf-code))))
+      (match?
+       (hxgm30.store.query:set-user-confirmed id)
+       (update-status st))))))
 
 ;;; -----------------
 ;;; private functions
 ;;; -----------------
 
 (defun genserver-opts () '())
-(defun unknown-command () #(error "Unknown command."))
+(defun unknown-command () #(error #"ERROR: Unknown command."))
+(defun non-matching-conf-code ()
+  #(error #"ERROR: Provided confirmation code does not match code on record."))
+
+(defun append-errors(st msg)
+  (set-reg-state-errors
+   st
+   (lists:append (reg-state-errors st) `(,msg))))
+
+(defun append-messages (st msg)
+  (set-reg-state-messages
+   st
+   (lists:append (reg-state-messages st) `(,msg))))
+
+(defun post-dispatch-cleanup (st)
+  (clj:-> st
+          (set-reg-state-command '())
+          (set-reg-state-errors '())
+          (set-reg-state-messages '())))
 
 (defun update-status
   "Note that the source of truth for valid return values are defined in the
