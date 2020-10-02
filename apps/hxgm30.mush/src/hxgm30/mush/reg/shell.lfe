@@ -45,11 +45,11 @@
   ((server (= (match-reg-state command parsed) st))
    (case (check-arg parsed)
      ('() (missing-arg st))
-     (email (progn
-              ;; XXX do basic regex check on email!
-              (gen_server:cast server `#(register ,email))
-              (send st (++ "Setting; to view status, use "
-                           "the 'status' or 'show-all' command.")))))))
+     (email (case (hxgm30.util:email? email)
+              ('false (send st "ERROR: Invalid email address."))
+              ('true (gen_server:cast server `#(register ,email))
+                     (send st (++ "Setting; to view progress, use "
+                                  "the 'status' or 'show-all' command."))))))))
 
 (defun empty (st)
    (send st))
