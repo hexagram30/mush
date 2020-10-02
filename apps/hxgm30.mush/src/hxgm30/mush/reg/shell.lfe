@@ -33,67 +33,62 @@
 ;;; -----------------
 
 (defun confirm
-  ((server (= (match-reg-state socket sock command parsed) st))
+  ((server (= (match-reg-state command parsed) st))
    (case (check-arg parsed)
      ('() (missing-arg st))
      (conf-code (progn
                   (gen_server:cast server `#(confirm ,conf-code))
-                  (send sock (++ "Checking; to view confirmation "
-                                 "status, use the 'status' or "
-                                 "'show-all' command.")))))))
+                  (send st (++ "Checking; to view confirmation status, use "
+                               "the 'status' or 'show-all' command.")))))))
 
 (defun email
-  ((server (= (match-reg-state socket sock command parsed) st))
+  ((server (= (match-reg-state command parsed) st))
    (case (check-arg parsed)
      ('() (missing-arg st))
      (email (progn
+              ;; XXX do basic regex check on email!
               (gen_server:cast server `#(register ,email))
-              (send sock (++ "Check your email for a confirmation "
-                             "code.")))))))
+              (send st (++ "Setting; to view status, use "
+                           "the 'status' or 'show-all' command.")))))))
 
-(defun empty
-  (((match-reg-state socket sock))
-   (send sock)))
+(defun empty (st)
+   (send st))
 
-(defun help
-  (((match-reg-state socket sock))
-   (send sock  (hxgm30.util:read-priv-file
-                (hxgm30.mush.config:reg-help-text)))))
+(defun help (st)
+  (send st (hxgm30.util:read-priv-file
+            (hxgm30.mush.config:reg-help-text))))
 
 (defun id
-  ((server (= (match-reg-state socket sock
-                               command parsed
+  ((server (= (match-reg-state command parsed
                                session-id id) st))
    (case (check-arg parsed)
-     ('() (send sock id))
+     ('() (send st id))
      (_ (resume server st)))))
 
 (defun quit (server)
   (gen_server:cast server 'quit))
 
 (defun resend-banner
-  (((match-reg-state socket sock session-id id))
-   (send sock (banner id) 0)))
+  (((= (match-reg-state session-id id) st))
+   (send st (banner id) 0)))
 
 (defun resend-code
-  ((server (match-reg-state socket sock))
-     (gen_server:cast server 'resend-confirmation)
-     (send sock "Check your email for a confirmation code.")))
+  ((server _st)
+     (gen_server:cast server 'resend-confirmation)))
 
 (defun resume
-  ((server (= (match-reg-state socket sock command parsed) st))
+  ((server (= (match-reg-state command parsed) st))
    (case (check-arg parsed)
      ('() (missing-arg st))
      (id (case (hxgm30.util:uuid? id)
            ('true (gen_server:cast server `#(session-id ,id))
-              (send sock
-                    (io_lib:format "Your current session ID is now ~s"
-                                   `(,id))))
+                  (send st
+                        (io_lib:format "Your current session ID is now ~s"
+                                       `(,id))))
            (_ (invalid-uuid st)))))))
-           
 
 (defun show-all
-  (((= (match-reg-state socket sock session-id id) st))
+  (((= (match-reg-state session-id id) st))
    (let* ((tmpl (++ "~nData for id = ~s:~n"
                     "* Email address: ~s~n"
                     "* Registration status: ~s~n"
@@ -102,16 +97,16 @@
                                      ,(reg-state-email st)
                                      ,(reg-state-status st)
                                      ,(reg-state-ssh-key st)))))
-     (send sock msg))))
+     (send st msg))))
 
 (defun ssh-key
-  ((server (= (match-reg-state socket sock command parsed) st))
+  ((server (= (match-reg-state command parsed) st))
    (case (check-key-args parsed)
      (`#(error) (missing-arg st))
      (key (progn
             (log-debug "Got ssh-key: ~p" `(,key))
             (gen_server:cast server `#(ssh-key ,key))
-            (send sock "ok"))))))
+            (send st "ok"))))))
 
 (defun status
   "Note that the source of truth for valid return values are defined in the
@@ -119,16 +114,16 @@
   * initiated - just an email has been provided
   * incomplete - email + one of the other required fields, but not all
   * complete - all required service_user data have been saved"
-  (((match-reg-state socket sock status stts))
+  (((= (match-reg-state status stts) st))
    (case stts
-     ("initiated" (send sock "Registration initiated."))
-     ("incomplete" (send sock (++ "Missing required data and/or "
-                                  "email verification.")))
-     ("complete" (send sock (++ "Registration complete! You are ready "
-                                "to play ... :-D")))
-     ('undefined (send sock (++ "You have not started the registration "
-                                "process.")))
-     (_ (send sock "Uknown registration state ... confused :-/")))))
+     ("initiated" (send st "Registration initiated."))
+     ("incomplete" (send st (++ "Missing required data and/or "
+                                "email verification.")))
+     ("complete" (send st (++ "Registration complete! You are ready "
+                              "to play ... :-D")))
+     ('undefined (send st (++ "You have not started the registration "
+                              "process.")))
+     (_ (send st "Uknown registration state ... confused :-/")))))
 
 (defun check-key-args
   ((`(,_ #(args ,args) ,_))
@@ -143,39 +138,57 @@
      (`(,head . ,_tail) head))))
 
 (defun missing-arg
-  (((match-reg-state socket sock))
-   (send sock (missing-arg-msg))))
+  (((= (match-reg-state socket sock) st))
+   (send st (missing-arg-msg))))
 
 (defun invalid-uuid
-  (((match-reg-state socket sock))
-   (send sock (invalid-uuid-msg))))
+  (((= (match-reg-state socket sock) st))
+   (send st (invalid-uuid-msg))))
 
 (defun unknown
-  (((match-reg-state socket sock))
-   (send sock (unknown-msg))))
+  (((= (match-reg-state socket sock) st))
+   (send st (unknown-msg))))
 
 ;;; -----------------
 ;;; support functions
 ;;; -----------------
 
-(defun send (sock)
-  (send sock "" 0))
+(defun send (st)
+  (send st "" 0))
 
-(defun send (sock msg)
-  (send sock msg 1))
+(defun send (st msg)
+  (send st msg 1))
 
-(defun send (sock msg nl-count)
-  (hxgm30.util:tcp-send
-   sock
-   (list msg
-         (lists:duplicate nl-count (newline))
-         (prompt))))
+(defun send
+  (((= (match-reg-state socket sock) st) msg nl-count)
+   ;;(log-debug "Preparing to send msg: ~p" `(,msg))
+   (hxgm30.util:tcp-send
+    sock
+    (list msg
+          (lists:duplicate nl-count (newline))
+          (gather-errors st)
+          (gather-messages st)
+          (prompt)))))
 
 (defun newline () #"\r\n")
 (defun prompt ()  #"registration> ")
 (defun missing-arg-msg () #"ERROR: missing argument(s); see 'help' for usage info")
 (defun unknown-msg () #"ERROR: unknown command")
 (defun invalid-uuid-msg () #"ERROR: provided ID is not a valid UUID")
+
+(defun gather-errors (st)
+  (case (reg-state-errors st)
+    ('() '())
+    (errs (list
+           (lists:join (newline) errs)
+           (newline)))))
+
+(defun gather-messages (st)
+  (case (reg-state-messages st)
+    ('() '())
+    (msgs (list
+           (lists:join (newline) msgs)
+           (newline)))))
 
 (defun banner (id)
   (list (io_lib:format (hxgm30.util:read-priv-file
