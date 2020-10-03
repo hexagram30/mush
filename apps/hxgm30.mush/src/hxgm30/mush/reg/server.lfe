@@ -69,7 +69,9 @@
    `#(noreply ,(accept-connection st)))
   ;; Process a user command
   (('dispatch st)
+   (log-debug "Dispatching with state: ~p" `(,st))
    (hxgm30.mush.reg.shell:command-dispatch (self) st)
+   (log-debug "Dispatched to shell.")
    `#(noreply ,(post-dispatch-cleanup st)))
   ;; Process a user's confirmation code submission
   ((`#(confirm ,conf-code) st)
