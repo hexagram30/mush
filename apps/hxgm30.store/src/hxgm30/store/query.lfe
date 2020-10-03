@@ -254,7 +254,6 @@
     (`#(error ,msg) `#(error ,msg))
     (result (car result))))
 
-
 (defun transact (sql)
   (pgo:transaction
    (lambda ()
@@ -281,6 +280,8 @@
                  `(,table ,columns ,values ,conflict-column ,sets ,where)))
 
 (defun extract-pg-error
+  ((`#(error none_available))
+   #"could not connecet to database")
   ((`#(,key ,value)) (when (== key 'pgsql_error))
    (mref value 'detail))
   ((`#(,key ,value))
