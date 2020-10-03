@@ -20,6 +20,9 @@ resume ID         - resume a previous session that was saved with the given
                     confirmed your account); provided ID must be a valid UUID
 show-all          - display all current session data
 ssh-key           - display public SSH key currently saved to this session
-ssk-key NEW-KEY   - set the public SSH key to be used for this account
+ssk-key NEW-KEY   - set the public SSH key to be used for this account; pasting
+                    the contents of your ~/.ssh/id_rsa.pub is sufficient, as
+                    long as all three parts are present: key type, the key
+                    itself, and then the key name
 status            - display the current confirmation status
 

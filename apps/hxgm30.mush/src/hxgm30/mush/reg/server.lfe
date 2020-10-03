@@ -143,7 +143,7 @@
       (let ((new-st (append-messages
                      st "Check your email for a confirmation code.")))
         (set-reg-state-email new-st email)))
-     (result      
+     (result
       (log-warning "Unexpected result: ~p" `(,result))
       st))))
 
@@ -160,11 +160,18 @@
 
 (defun register-ssh-key
   (((= (match-reg-state session-id id) st) key)
-   (let* ((result (hxgm30.store.query:set-user-ssh-key id key))
-          (new-st (set-reg-state-ssh-key st key))
-          ;; XXX check new update-status function -- is this working?
-          (status (update-status new-st)))
-     (set-reg-state-status new-st status))))
+   (log-debug "Got SSH public key ~p" `(,key))
+   (case (hxgm30.store.query:set-user-ssh-key id key)
+     (`#(error ,msg)
+      (log-error msg)
+      (append-errors st (list #"ERROR: " msg)))
+     ('()
+      (clj:-> st
+              (set-reg-state-ssh-key key)
+              (update-status)))
+     (result
+      (log-warning "Unexpected result: ~p" `(,result))
+      st))))
 
 (defun switch-session (st id)
   (let ((user-data (hxgm30.store.query:user id)))
