@@ -30,14 +30,12 @@ status            - display the current confirmation status
 
 Supported control characters:
 
-<CTRL> A - Sends the SOH (start of heading) character which is
-           interpreted as the 'banner' command.
+<CTRL> A - Sends the SOH (start of heading) character which is interpreted as
+           the 'banner' command.
 <CTRL> C - This is intercepted by Telnet, which sends its own IP (interrupt)
            control sequence to the shell; interpreted as the 'quit' command.
 <CTRL> D - Sends an EOT ("end of transmission") control character which is
            interpreted as the 'quit' or 'exit' command.
-<CTRL> E - Sends the ENQ (enquiry) character which is interpreted as the
-           'help' command.
 <CTRL> X - Sends the CAN (cancel) character which is interpreted as the
            'quit' command.
 <CTRL> \ - This is intercepted by Telnet, which sends its own BRK (break)
