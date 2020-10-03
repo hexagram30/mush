@@ -12,6 +12,7 @@
 (defun command-dispatch
   ((server (= (match-reg-state command parsed session-id id) st))
    (let ((`(#(cmd ,cmd) ,_ ,_) parsed))
+     (log-debug "Processing command ~p ..." `(,cmd))
      (case cmd
        ("" (empty st))
        ("banner" (resend-banner st))
@@ -20,12 +21,38 @@
        ("exit" (quit server))
        ("help" (help st))
        ("id" (id server st))
+       ("?" (help st))
        ("quit" (quit server))
        ("resend" (resend-code server st))
        ("resume" (resume server st))
        ("show-all" (show-all st))
        ("ssh-key" (ssh-key server st))
        ("status" (status st))
+       ;; Control characters
+       ('(0) (empty st))         ; ^@ / NUL / Null
+       ('(1) (resend-banner st)) ; ^A / SOH / Start of Heading
+       ('(2) (empty st))         ; ^B / STX / Start of Text
+       ('(3) (quit server))      ; ^C / ETX / End of Text
+       ('(4) (quit server))      ; ^D / EOT / End of Transmission
+       ;; XXX can't seem to send a ^E any more ...?
+       ('(5) (help st))          ; ^E / ENQ / Enquiry
+       ('(6) (empty st))         ; ^F / ACK / End of Acknowledge
+       ('(7) (empty st))         ; ^G / BEL / Bell, Alert
+       ('(8) (empty st))         ; ^H / BS  / Backspace
+       ('(14) (empty st))        ; ^N / SO  / Shift Out
+       ('(16) (empty st))        ; ^P / DLE / Data Link Escape
+       ('(17) (empty st))        ; ^Q / DC1 / Device Control One
+       ('(19) (empty st))        ; ^S / DC3 / Device Control Three
+       ('(20) (empty st))        ; ^T / DC4 / Device Control Four
+       ('(22) (empty st))        ; ^V / SYN / Synchronous Idle
+       ('(24) (quit server))     ; ^X / CAN / Cancel
+       ('(25) (empty st))        ; ^Y / EM  / End of medium
+       ('(28) (quit server))     ; ^\ / FS  / File Separator
+       ('(30) (empty st))        ; ^^ / RS  / Record Separator
+       ('(31) (empty st))        ; ^_ / US  / Unit Separator
+       ;; Telnet commands
+       ('(255 243 255 253 6) (quit server)) ; ^\ / BRK / Break
+       ('(255 244 255 253 6) (quit server)) ; ^C / IP  / Interrupt
        (_ (unknown st))))))
 
 ;;; -----------------
@@ -161,14 +188,13 @@
 
 (defun send
   (((= (match-reg-state socket sock) st) msg nl-count)
-   ;;(log-debug "Preparing to send msg: ~p" `(,msg))
-   (hxgm30.util:tcp-send
-    sock
-    (list msg
-          (lists:duplicate nl-count (newline))
-          (gather-errors st)
-          (gather-messages st)
-          (prompt)))))
+   (let ((payload (list msg
+                        (lists:duplicate nl-count (newline))
+                        (gather-errors st)
+                        (gather-messages st)
+                        (prompt))))
+     (log-debug "Complete payload: ~p" `(,(lists:flatten payload)))
+     (hxgm30.util:tcp-send sock payload))))
 
 (defun newline () #"\r\n")
 (defun prompt ()  #"registration> ")
