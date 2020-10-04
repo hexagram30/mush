@@ -14,25 +14,31 @@ UPDATE service_user SET registration_status = 'complete'
        WHERE email = 'root@hxgm30.mush';
 UPDATE service_user SET confirmed = TRUE WHERE email = 'root@hxgm30.mush';
 
-CREATE FUNCTION expire_nonconfirmed_users() RETURNS trigger
+CREATE FUNCTION expire_nonconfirmed_users()
+    RETURNS trigger
     LANGUAGE plpgsql
     AS $$
+DECLARE
+    row_count INT;
 BEGIN
-  DELETE FROM service_user
-  WHERE created_on < NOW() - INTERVAL '24 hours'
-  AND registration_status != 'complete';
-  RETURN NEW;
+    DELETE FROM service_user
+    WHERE now() - created_on > INTERVAL '24 hours'
+    AND registration_status <> 'complete';
+    IF FOUND THEN
+        GET DIAGNOSTICS row_count = ROW_COUNT;
+        RAISE NOTICE 'DELETEd % row(s) FROM service_user', row_count;
+    END IF;
+    RETURN OLD;
 END;
 $$;
 
 CREATE TRIGGER expire_nonconfirmed_users_trigger
-    AFTER INSERT ON service_user
+    BEFORE INSERT ON service_user
     EXECUTE PROCEDURE expire_nonconfirmed_users();
 
 --Down
 
 DROP TRIGGER expire_nonconfirmed_users_trigger ON service_user;
-
 DROP FUNCTION expire_nonconfirmed_users;
 
 ALTER TABLE service_user DROP COLUMN registration_status;
