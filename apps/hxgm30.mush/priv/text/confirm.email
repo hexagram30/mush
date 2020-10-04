@@ -7,6 +7,6 @@ If it was you, please return to the telnet session in the user registraion
 service and execute the 'confirm' command with the following confirmation
 code as an argument:
 
-~s
+    ~s
 
-This confirmation code will expire aft4 24 hours.
+This confirmation code will expire after 24 hours.
