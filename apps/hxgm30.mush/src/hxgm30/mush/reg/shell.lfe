@@ -3,7 +3,6 @@
    (banner 1)
    (command-dispatch 2)
    (prompt 0)
-   (send-confirmation-code 2)
    (welcome 1)))
 
 (include-lib "logjam/include/logjam.hrl")
@@ -100,15 +99,16 @@
    (send st (banner id) 0)))
 
 (defun resend-code
-  ((server _st)
-     (gen_server:cast server 'resend-confirmation)))
+  ((server st)
+   (gen_server:cast server 'resend-confirmation)
+   (empty st)))
 
 (defun resume
   ((server (= (match-reg-state command parsed) st))
    (case (check-arg parsed)
      ('() (missing-arg st))
      (id (case (hxgm30.util:uuid? id)
-           ('true (gen_server:cast server `#(session-id ,id))
+           ('true (gen_server:cast server `#(resume ,id))
                   (send st
                         (io_lib:format "Your current session ID is now ~s"
                                        `(,id))))
@@ -193,7 +193,7 @@
                         (gather-errors st)
                         (gather-messages st)
                         (prompt))))
-     (log-debug "Complete payload: ~p" `(,(lists:flatten payload)))
+     ;;(log-debug "Complete payload: ~p" `(,(lists:flatten payload)))
      (hxgm30.util:tcp-send sock payload))))
 
 (defun newline () #"\r\n")
@@ -223,16 +223,3 @@
 
 (defun welcome (id)
   (list (banner id) (prompt)))
-
-(defun send-confirmation-code (to conf-code)
-  (let ((msg (io_lib:format (hxgm30.util:read-priv-file
-                             (hxgm30.mush.config:reg-email-tmpl))
-                            `(,conf-code))))
-    (case (sendmail:send `#m(to ,to
-                             from ,(hxgm30.mush.config:reg-email-from)
-                             subject ,(hxgm30.mush.config:reg-email-subj)
-                             message ,msg))
-      (`#(0 ,_)
-       (log-info "Successfully sent registration email to ~s" `(,to)))
-      (`#(,exit-code ,err)
-       (log-error "Could not send registration email: ~p" `(,err))))))
