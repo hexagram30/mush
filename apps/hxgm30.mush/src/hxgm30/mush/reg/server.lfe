@@ -80,11 +80,14 @@
   ((`#(register ,email) st)
    `#(noreply ,(register-email st email)))
   ;; Swith the user's session ID to a previous one
-  ((`#(session-id ,id) st)
-   `#(noreply ,(switch-session st id)))
+  ((`#(resume ,id) st)
+   `#(noreply ,(resume-session st id)))
   ;; Register a user's SSH key
   ((`#(ssh-key ,key) st)
    `#(noreply ,(register-ssh-key st key)))
+  ;; Resend the email confirmation number
+  (('resend-confirmation st)
+   `#(noreply ,(resend-confirmation st)))
   ;; Disconnect from the registration service
   (('quit (= (match-reg-state socket sock) st))
    (gen_tcp:close sock)
@@ -144,7 +147,7 @@
       (register-email st id email)
       (let ((new-st (append-messages
                      st "Check your email for a confirmation code.")))
-        (set-reg-state-email new-st email)))
+        (update-status (set-reg-state-email new-st email))))
      (result
       (log-warning "Unexpected result: ~p" `(,result))
       st))))
@@ -157,7 +160,7 @@
          (status (update-status new-st)))
     ;; XXX check new set-user-conf-code function
     (hxgm30.store.query:set-user-conf-code id code)
-    (hxgm30.mush.reg.shell:send-confirmation-code email code)
+    (send-confirmation-code email code)
     (set-reg-state-status new-st status)))
 
 (defun register-ssh-key
@@ -175,20 +178,41 @@
       (log-warning "Unexpected result: ~p" `(,result))
       st))))
 
-(defun switch-session (st id)
+(defun resend-confirmation
+  (((= (match-reg-state session-id id email email) st))
+   (log-debug "Resending confirmation code to ~p" `(,email))
+   (let ((code (hxgm30.store.query:user-conf-code id)))
+     (send-confirmation-code email code)
+     st)))
+
+(defun resume-session (st id)
   (let ((user-data (hxgm30.store.query:user id)))
-    ;; XXX if not found, just replace id
-    ;; XXX if found, create new state object with all new data
-    (set-reg-state-session-id st id)))
+    (case (hxgm30.store.query:user id)
+      ('() (set-reg-state-session-id st id))
+      (`#m(#"email" ,email
+           #"ssh_public_key" ,key
+           #"registration_status" ,status
+           #"confirmed" ,confirmed)
+          (log-debug "Saved email: ~p" `(,email))
+          (log-debug "Saved SSH public key: ~p" `(,key))
+          (log-debug "Saved confirmed: ~p" `(,confirmed))
+          (log-debug "Saved registration status: ~p" `(,status))
+          (clj:-> st
+                  (set-reg-state-session-id id)
+                  (set-reg-state-email email)
+                  (set-reg-state-ssh-key key)
+                  (set-reg-state-confirmed confirmed)
+                  (set-reg-state-status status))))))
 
 (defun verify-email
   (((= (match-reg-state session-id id) st) conf-code)
    (log-debug "Got confirmation code ~p" `(,conf-code))
    (let* ((stored-conf-code (hxgm30.store.query:user-conf-code id))
-          (match? (=/= conf-code stored-conf-code)))
+          (match? (== (list_to_binary conf-code) stored-conf-code)))
+     (log-debug "Matching? ~p" `(,match?))
      (cond
       ((not match?)
-       (update-status (set-reg-state-errors st (non-matching-conf-code))))
+       (update-status (append-errors st (non-matching-code-msg))))
       (match?
        (hxgm30.store.query:set-user-confirmed id)
        (update-status st))))))
@@ -198,9 +222,12 @@
 ;;; -----------------
 
 (defun genserver-opts () '())
-(defun unknown-command () #(error #"ERROR: Unknown command."))
-(defun non-matching-conf-code ()
-  #(error #"ERROR: Provided confirmation code does not match code on record."))
+(defun unknown-msg () #"ERROR: Unknown command.")
+(defun non-matching-code-msg ()
+  #"ERROR: Provided confirmation code does not match code on record.")
+
+(defun unknown-command ()
+  `#(error ,(unknown-msg)))
 
 (defun append-errors(st msg)
   (set-reg-state-errors
@@ -225,9 +252,19 @@
   * incomplete - email + one of the other required fields, but not all
   * complete - all required service_user data have been saved"
   (((= (match-reg-state email em ssh-key key status stts session-id id) st))
-   (let* ((confirmed? (hxgm30.store.query:user-confirmed? id))
-          (email? (if (== em 'undefined 'false) 'true))
-          (ssh-key? (if (== key 'undefined 'false) 'true))
+   (let* ((db-confirmed? (hxgm30.store.query:user-confirmed? id))
+          (confirmed? (if (or (== db-confirmed? 'undefined)
+                              (== db-confirmed? 'null))
+                        'false
+                        db-confirmed?))
+          (email? (if (or (== em 'undefined)
+                          (== em 'null))
+                    'false
+                    'true))
+          (ssh-key? (if (or (== key 'undefined)
+                            (== key 'null))
+                      'false
+                      'true))
           (new-stts (cond
                      ((and confirmed? email? ssh-key?) "complete")
                      ((and (or (and confirmed? email?)
@@ -239,3 +276,19 @@
      (if (and changed? (=/= new-stts 'undefined))
        (hxgm30.store.query:set-user-reg-status id new-stts))
      (set-reg-state-status st new-stts))))
+
+(defun send-confirmation-code
+  ((to conf-code) (when (is_binary to))
+   (send-confirmation-code (binary_to_list to) conf-code))
+  ((to conf-code)
+   (let ((msg (io_lib:format (hxgm30.util:read-priv-file
+                              (hxgm30.mush.config:reg-email-tmpl))
+                             `(,conf-code))))
+     (case (sendmail:send `#m(to ,to
+                                 from ,(hxgm30.mush.config:reg-email-from)
+                                 subject ,(hxgm30.mush.config:reg-email-subj)
+                                 message ,msg))
+       (`#(0 ,_)
+        (log-info "Successfully sent registration email to ~s" `(,to)))
+       (`#(,exit-code ,err)
+        (log-error "Could not send registration email: ~p" `(,err)))))))
