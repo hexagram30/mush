@@ -37,7 +37,7 @@ INSERT INTO game_character (owner_id, game_id, role, display_name, created_on)
        VALUES (1, 1, 'wizard', 'Psilofyr', current_timestamp);
 
 INSERT INTO area (display_name, created_on, description)
-       VALUES ('The MUSH Room', current_timestamp, 'You are in a large, low-lit, warm room. The floor and walls are soft but firm, with a bit of a bounce. There is a distinctive oder about the place.');
+       VALUES ('The MUSH Room', current_timestamp, 'You are in a large, low-lit, warm room. The floor and walls are soft but firm, with a bit of a bounce. There is a distinctive odor about the place.');
 
 -- Down
 
