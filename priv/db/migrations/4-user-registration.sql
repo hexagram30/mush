@@ -23,7 +23,9 @@ DECLARE
 BEGIN
     DELETE FROM service_user
     WHERE now() - created_on > INTERVAL '24 hours'
-    AND registration_status <> 'complete';
+    AND (registration_status <> 'complete'
+         OR
+         registration_status IS NULL);
     IF FOUND THEN
         GET DIAGNOSTICS row_count = ROW_COUNT;
         RAISE NOTICE 'DELETEd % row(s) FROM service_user', row_count;
