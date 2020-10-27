@@ -53,9 +53,11 @@
 
 (defun handle_call
   (('stop _from state)
-    `#(stop shutdown ok state))
+   `#(stop shutdown ok ,state))
+  ((`#(priv) _from state)
+   `#(reply ,(code:priv_dir 'hxgm30.store) ,state))
   ((`#(echo ,msg) _from state)
-    `#(reply ,msg state))
+    `#(reply ,msg ,state))
   ((message _from state)
     `#(reply ,(unknown-command) ,state)))
 
@@ -83,3 +85,6 @@
 
 (defun echo (msg)
   (gen_server:call (SERVER) `#(echo ,msg)))
+
+(defun priv ()
+  (gen_server:call (SERVER) `#(priv)))
