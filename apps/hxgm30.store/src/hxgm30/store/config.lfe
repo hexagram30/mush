@@ -6,7 +6,10 @@
    (default-pgo-pool 1)
    (epg-pool 1)
    (migration-dir 1)
-   (read-config 1)))
+   (read-config 1))
+  (export
+   (store 0)
+   (games-dir 0)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;   System-based Configuration   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -23,6 +26,19 @@
   (clj:->> (pgo)
            (proplists:get_value 'pools)
            (proplists:get_value 'default)))
+
+(defun store ()
+  (application:get_all_env 'hxgm30.store))
+
+(defun games-app ()
+  (proplists:get_value 'stories-app (store)))
+
+(defun games-subdir ()
+  (proplists:get_value 'stories-dir (store)))
+
+(defun games-dir ()
+  (filename:join (code:priv_dir (games-app))
+                 (games-subdir)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;   Script-based Configuration   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

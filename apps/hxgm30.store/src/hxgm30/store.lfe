@@ -1,10 +1,10 @@
 (defmodule hxgm30.store
   (behaviour gen_server)
+  ;; gen_server implementation
   (export
-   ;; gen_server implementation
    (start_link 0))
+  ;; callback implementation
   (export
-   ;; callback implementation
    (init 1)
    (handle_call 3)
    (handle_cast 2)
@@ -13,9 +13,10 @@
    (code_change 3))
   ;; server API
   (export
-   (stop 0)
+   (echo 1)
+   (games 0) (games 1)
    (pid 0)
-   (echo 1)))
+   (stop 0)))
 
 (include-lib "logjam/include/logjam.hrl")
 
@@ -54,10 +55,12 @@
 (defun handle_call
   (('stop _from state)
    `#(stop shutdown ok ,state))
-  ((`#(priv) _from state)
-   `#(reply ,(code:priv_dir 'hxgm30.store) ,state))
   ((`#(echo ,msg) _from state)
-    `#(reply ,msg ,state))
+   `#(reply ,msg ,state))
+  ((`#(games) _from state)
+   `#(reply ,(games-names) ,state))
+  ((`#(games abs) _from state)
+   `#(reply ,(games-dirs) ,state))
   ((message _from state)
     `#(reply ,(unknown-command) ,state)))
 
@@ -77,7 +80,7 @@
   `#(ok ,state))
 
 ;;; --------------
-;;; our server API
+;;; server API
 ;;; --------------
 
 (defun pid ()
@@ -86,5 +89,30 @@
 (defun echo (msg)
   (gen_server:call (SERVER) `#(echo ,msg)))
 
-(defun priv ()
-  (gen_server:call (SERVER) `#(priv)))
+(defun games ()
+  (gen_server:call (SERVER) `#(games)))
+
+(defun games
+  (('#(abs))
+   (games #(abs true)))
+  (('#(abs true))
+   (gen_server:call (SERVER) `#(games abs)))
+  ((_)
+   (games)))
+
+;;; -----------------
+;;; support functions
+;;; -----------------
+
+(defun games-dirs ()
+  "List of absolute paths to each game in the games dir."
+  (filelib:wildcard
+   (filename:join
+    (hxgm30.store.config:games-dir)
+    "*")))
+
+(defun games-names ()
+  "List of just the relative path / directory names of each game in the games
+  dir."
+  (lists:map #'filename:basename/1
+             (games-dirs)))
