@@ -1,6 +1,6 @@
 {application, 'hxgm30.mush',
  [{description, "The LFE MUSH server"},
-  {vsn, "0.2.0-dev"},
+  {vsn, "0.2.0"},
   {registered, []},
   {mod, {'hxgm30.mush.app', []}},
   {applications,
