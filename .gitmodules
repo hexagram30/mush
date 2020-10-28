@@ -1,0 +1,3 @@
+[submodule "apps/hxgm30.mush/priv/games/undirvithr"]
+	path = apps/hxgm30.mush/priv/games/undirvithr
+	url = git@github.com:cnbb-games/undirvithr.git
