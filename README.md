@@ -87,7 +87,7 @@ At a high level, actual usage of the system as a MUSH server offering various ga
    1. [ ] Build more of the world (dig out new areas)
    1. [ ] Get customised area descriptions based on changes in world state (event subscriptions)
 
-PLayers with the `builder` role are able to add new areas to the game, create and place items, update existing areas, etc. All players may build one home in an available location (for areas that are approved for homes where there are available slots).
+Players with the `builder` role are able to add new areas to the game, create and place items, update existing areas, etc. All players may build one home in an available location (for areas that are approved for homes where there are available slots).
 
 ## License [&#x219F;](#table-of-contents)
 
